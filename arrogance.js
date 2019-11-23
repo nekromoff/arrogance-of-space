@@ -1,5 +1,6 @@
 var grid_width = 900;
 var grid_block_size=40;
+var prev_grid_block_size=40;
 var grid_block_number_x=grid_width/grid_block_size;
 var grid_block_number_y=grid_width/grid_block_size;
 var current_opacity=0.5;
@@ -75,6 +76,28 @@ function setup() {
             grid[x][y]=null;
         }
     }
+    draw();
+}
+
+function resize_grid() {
+    $('#container').css('width', grid_width);
+    $('#container').css('height', grid_height);
+    $('#canvas').attr('width', $('#container').css('width'));
+    $('#canvas').attr('height', $('#container').css('height'));
+    grid_block_size=$('#gridblocksize').val()*1;
+    grid_block_number_x=Math.floor(grid_width/grid_block_size);
+    grid_block_number_y=Math.floor(grid_height/grid_block_size);
+    new_grid = [];
+    for (var x=0;x<=grid_block_number_x;x++) {
+        x_prev = Math.floor(x * grid_block_size / prev_grid_block_size);
+        new_grid[x]=[];
+        for (var y=0;y<=grid_block_number_y;y++) {
+            y_prev = Math.floor(y * grid_block_size / prev_grid_block_size);
+            new_grid[x][y] = grid[x_prev][y_prev];
+        }
+    }
+    prev_grid_block_size = grid_block_size
+    grid = new_grid
     draw();
 }
 
@@ -283,7 +306,7 @@ $('input').keydown(function (e) {
 $('form').submit(function(e) { e.preventDefault(); return false; });
 $('#gridblocksize').val(grid_block_size);
 $('#gridimage').change(function() { changeImage(); });
-$('#gridblocksize').change(function(e) { e.preventDefault(); setup(); drawBoard(); return false; });
+$('#gridblocksize').change(function(e) { e.preventDefault(); resize_grid(); drawBoard(); return false; });
 $('#eraseropacity').change(function() { changeOpacity(); draw(); });
 $('#canvas').bind('mousemove', function (e) { toggleGrid(e); drawGrid(); });
 $('#canvas').click(function() { toggleTool() });
