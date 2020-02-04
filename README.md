@@ -1,4 +1,4 @@
-# The Arrogance of Space Mapping Tool
+# The Arrogance of Space Mapping Tool #ArroganceOfSpace
 See running version: https://cyklokoalicia.sk/arrogance/
 
 ## What is this?
