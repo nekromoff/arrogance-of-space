@@ -9,7 +9,7 @@
     })(window,document,'script','dataLayer','GTM-KBLX9LP');</script>
     <!-- End Google Tag Manager -->
     <meta charset="utf-8">
-    <title>The Arrogance of Space Mapping Tool</title>
+    <title>The Arrogance of Space Mapping Tool #ArroganceOfSpace</title>
     <meta name="description" content="Useful tool to show how much space is taken in our cities by cars. Load an image and easily mark type of space for any city. Inspired by Copehagenize.">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <link rel="shortcut icon" href="favicon.png"/>
@@ -65,7 +65,7 @@
         </div>
         <div class="l-box">
             <small><a href="https://medium.com/@colville_andersen/the-arrogance-of-space-93a7419b0278">Concept</a> by <a href="https://colville-andersen.com/">Mikael Colville-Andersen</a>, Copenhagenize.</small><br>
-            <small>This tool developed by <a href="https://www.ambience.sk/about/">Daniel Duris</a> for the <a href="https://cyklokoalicia.sk/en/">Cycling Coalition</a>. See <a href="https://github.com/nekromoff/arrogance-of-space">code on Github</a>.</small>
+            <small>This tool developed by <a href="https://www.ambience.sk/about/">Daniel Duris</a> for the <a href="https://cyklokoalicia.sk/en/">Cycling Coalition</a>. See <a href="https://github.com/nekromoff/arrogance-of-space">code on Github</a>. #ArroganceOfSpace</small>
         </div>
     </div>
     <div class="pure-u-1 pure-u-lg-4-5" id="editor">
