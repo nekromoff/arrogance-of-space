@@ -22,11 +22,12 @@ $url = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? 'https' : 'http
     <link href="arrogance.css" rel="stylesheet">
     <meta property="og:title" content="The Arrogance of Space Mapping Tool #ArroganceOfSpace">
     <meta property="og:description" content="Useful tool to show how much space is taken in our cities by cars. Load an image and easily mark type of space for any city.">
-    <meta property="og:image" content="<?php echo $url; ?>favicon.png">
+    <meta property="og:image" content="<?php echo $url; ?>arrogance.png">
     <meta property="og:url" content="<?php echo $url; ?>">
+    <meta property="og:type" content="website">
     <meta name="twitter:title" content="The Arrogance of Space Mapping Tool #ArroganceOfSpace">
     <meta name="twitter:description" content="Useful tool to show how much space is taken in our cities by cars. Load an image and easily mark type of space for any city.">
-    <meta name="twitter:image" content="<?php echo $url; ?>favicon.png">
+    <meta name="twitter:image" content="<?php echo $url; ?>arrogance.png">
     <meta name="twitter:card" content="summary_large_image">
 </head>
 <body>
