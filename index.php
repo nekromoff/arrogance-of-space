@@ -67,6 +67,7 @@ $url = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? 'https' : 'http
                     <li>Left click on the map and start drawing the color onto the map.</li>
                     <li>You can use your mouse wheel to change colors while drawing.</li>
                     <li>Left click again to release the drawing tool.</li>
+                    <li>Right click to add a marker (e.g. cyclist counts)</li>
                 </ul></small>
         </div>
         <div class="l-box">
