@@ -335,10 +335,11 @@ function makeVirtual() {
     }
     for (i = 0; i < tools_length - 1; i++) { // do not include last tool - the eraser
         if (percentages[tools_keys[i]]) {
-            var percentage_string = ' (' + percentages[tools_keys[i]] + '%) ';
+            var percentage_string = ' (' + percentages[tools_keys[i]] + '%)';
             if (tools[tools_keys[i]].markers && marker_counts[tools_keys[i]]) {
                 percentage_string = percentage_string + ', ' + marker_counts[tools_keys[i]] + ' counted';
             }
+            var percentage_string = percentage_string + ' ';
             var text_width = virtual_context.measureText(tools[tools_keys[i]].desc + percentage_string).width;
             if (x + text_width > parseInt($('#canvas').attr('width'), 10)) {
                 y = y + 21;
@@ -409,6 +410,13 @@ $('#canvas').bind('mousemove', function(e) {
 });
 $('#canvas').click(function() {
     toggleTool();
+});
+$(document).keyup(function(e) {
+    if (e.key == 'Backspace') {
+        markers.pop();
+    }
+    drawGrid();
+    drawMarkers();
 });
 $('#canvas').contextmenu(function(e) {
     createMarker(e);

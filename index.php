@@ -67,7 +67,8 @@ $url = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? 'https' : 'http
                     <li>Left click on the map and start drawing the color onto the map.</li>
                     <li>You can use your mouse wheel to change colors while drawing.</li>
                     <li>Left click again to release the drawing tool.</li>
-                    <li>Right click to add a marker (e.g. cyclist counts)</li>
+                    <li>Right click to add a marker (e.g. cyclist/ped counts)</li>
+                    <li>Press backspace to remove a marker</li>
                 </ul></small>
         </div>
         <div class="l-box">
@@ -89,6 +90,6 @@ $url = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? 'https' : 'http
     </div>
     <div id="modal">Please wait...</div>
     <canvas id="virtual"></canvas>
-    <script type="text/javascript" language="javascript" src="arrogance.js"></script>
+    <script type="text/javascript" language="javascript" src="arrogance.js?counts"></script>
 </body>
 </html>
