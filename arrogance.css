@@ -27,6 +27,13 @@ h1 {
     background: rgb(223, 117, 20); /* this is an orange */
 }
 .tool_down { cursor: crosshair; }
+input[type="file"] {
+    /* Truncate text in file input to fit menu */
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    width: 100%;
+}
 #modal {
     display: none;
     position: absolute;
