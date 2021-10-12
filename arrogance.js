@@ -399,7 +399,7 @@ $('#gridblocksize').change(function(e) { 
     drawBoard();
     return false;
 });
-$('#eraseropacity').change(function() {
+$('#eraseropacity').on('input change', function() {
     changeOpacity();
     draw();
 });
