@@ -10,6 +10,9 @@
     width: auto;
     height: auto;
 }
+#canvas:hover:active { 
+    cursor: crosshair;
+}
 #virtual {
     display: none;
 }
@@ -26,7 +29,6 @@ h1 {
 .pure-button-warning {
     background: rgb(223, 117, 20); /* this is an orange */
 }
-.tool_down { cursor: crosshair; }
 #modal {
     display: none;
     position: absolute;
