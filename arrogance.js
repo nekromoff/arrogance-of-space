@@ -10,42 +10,42 @@ var markers = [];
 var tools = {
     cars:  {
         color: 'rgba(209,34,38,0.5)',
-        desc: '■ Space for cars',
+        desc: 'Cars',
         markers: true // allow markers for this tool?
     },
     pedestrians:  {
         color: 'rgba(22,169,227,0.5)',
-        desc: '■ Space for pedestrians',
+        desc: 'Pedestrians',
         markers: true
     },
     cyclists:  {
         color: 'rgba(150,79,160,0.5)',
-        desc: '■ Space for cyclists',
+        desc: 'Cyclists',
         markers: true
     },
     publictransport:  {
         color: 'rgba(0,85,255,0.5)',
-        desc: '■ Public transport',
+        desc: 'Public transport',
         markers: true
     },
     buildings: {
         color: 'rgba(255,255,100,0.5)',
-        desc: '■ Buildings',
+        desc: 'Buildings',
         markers: false
     },
     green: {
         color: 'rgba(0,255,0,0.5)',
-        desc: '■ Green',
+        desc: 'Green',
         markers: true
     },
     dead_space: {
         color: 'rgba(148,148,153,0.5)',
-        desc: '■ "Dead" space',
+        desc: '"Dead" space',
         markers: false
     },
     eraser: {
         color: 'rgba(255,255,255,0.5)',
-        desc: '□ Eraser',
+        desc: 'Eraser',
         markers: false
     }
 };
@@ -89,6 +89,13 @@ function setup() {
         }
     }
     markers = [];
+
+    // Create button for each tool
+    $("#tools").html(Object.entries(tools).map(([tool_name, props]) =>
+        `<button data-tool="${tool_name}" class="pure-button tool-button" style="background-color: ${props.color}">
+            ${props.desc}
+        </button>`
+    ));
     draw();
 }
 
@@ -246,16 +253,14 @@ $('#canvas').bind('mousewheel DOMMouseScroll', function(e) {
     changeTool(new_tool);
 });
 
-function changeTool(new_tool) {
-    if (new_tool > tools_length - 1) {
-        new_tool = tools_length - 1;
-    }
-    if (new_tool < 0) {
-        new_tool = 0;
-    }
+function changeTool(index) {
+    const new_tool = Math.max(0, Math.min(index, tools_length - 1));
+    
     selected_tool = tools_keys[new_tool];
-    $('#tool').text(tools[selected_tool].desc);
-    $('#tool').css('background-color', tools[selected_tool].color);
+    $('.tool-button').each((i, button) => {
+        const tool = $(button).data().tool;
+        $(button).toggleClass('pure-button-active', tool === selected_tool)
+    })
 }
 
 function saveImage()  {
@@ -409,13 +414,11 @@ $('#canvas').contextmenu(function(e) {
     drawMarkers();
     return false;
 });
-$('#toolup').click(function() {
-    new_tool = tools_keys.indexOf(selected_tool) + 1;
-    changeTool(new_tool);
-});
-$('#tooldown').click(function() {
-    new_tool = tools_keys.indexOf(selected_tool) - 1;
-    changeTool(new_tool);
+$(document).on('click', '.tool-button', function() {
+    const tool_name = $(this).data().tool;
+    const tool_index = tools_keys.indexOf(tool_name);
+    
+    changeTool(tool_index)
 });
 $('#save').click(function() {
     saveImage();

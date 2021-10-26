@@ -16,15 +16,26 @@
 #virtual {
     display: none;
 }
-#tool {
-    padding: 2px;
-    border: 1px solid #000;
-}
+
 h1 {
     margin: 0.2em 0;
 }
 .l-box {
     padding: 0.5em 0.7em;
+}
+#tools {
+    display: grid;
+    grid-template-columns: 50% 50%;
+    gap: 4px;
+    max-width: 350px;
+}
+.tool-button {
+    font-size: 0.85em;
+    text-align: center;
+    padding: 0.75em 0;
+    overflow: hidden;
+    text-overflow: clip;
+    white-space: nowrap;
 }
 .pure-button-warning {
     background: rgb(223, 117, 20); /* this is an orange */

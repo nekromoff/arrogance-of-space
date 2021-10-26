@@ -61,14 +61,16 @@ $url = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? 'https' : 'http
             </form>
         </div>
         <div class="l-box">
-            <a id="toolup" class="pure-button pure-button-secondary">↑</a> <a id="tooldown" class="pure-button pure-button-secondary">↓</a> Tool: <span id="tool">Tool</span><br><small>
+            <div id="tools"></div>
+            <small>
                 <ul>
                     <li>Select a color tool.</li>
                     <li>Click and drag to draw the color onto the map.</li>
                     <li>Right click to add a marker (e.g. cyclist/ped counts.)</li>
                     <li>Scroll or use your mouse wheel to cycle through colors.</li>
                     <li>Press backspace to remove a marker.</li>
-                </ul></small>
+                </ul>
+            </small>
         </div>
         <div class="l-box">
             <a id="save" class="pure-button pure-button-primary" download="arrogance.png" href="#">Save image</a> <a id="savegrid" class="pure-button pure-button-warning" download="arrogance-grid.png" href="#">Save colors only</a>
