@@ -4,7 +4,6 @@ var prev_grid_block_size = 40;
 var grid_block_number_x = grid_width / grid_block_size;
 var grid_block_number_y = grid_width / grid_block_size;
 var current_opacity = 0.5;
-var tool_down = false;
 var background_img = new Image();
 var grid = [];
 var markers = [];
@@ -156,7 +155,7 @@ function getMousePos(e) {
 }
 
 function toggleGrid(e) {
-    if (!tool_down) {
+    if (e.type === 'mousemove' && e.buttons !== 1) {
         return;
     }
     var pos = getMousePos(e);
@@ -243,16 +242,6 @@ function changeImage() {
         }
         $('#modal').fadeOut();
     });
-}
-
-function toggleTool() {
-    if (!tool_down) {
-        tool_down = true;
-        $('#canvas').addClass('tool_down');
-    } else {
-        tool_down = false;
-        $('#canvas').removeClass('tool_down');
-    }
 }
 
 $('#canvas').bind('mousewheel DOMMouseScroll', function(e) {
@@ -404,17 +393,14 @@ $('#gridblocksize').change(function(e) { 
     drawBoard();
     return false;
 });
-$('#eraseropacity').change(function() {
+$('#eraseropacity').on('input change', function() {
     changeOpacity();
     draw();
 });
-$('#canvas').bind('mousemove', function(e) {
+$('#canvas').bind('click mousemove', function(e) {
     toggleGrid(e);
     drawGrid();
     drawMarkers();
-});
-$('#canvas').click(function() {
-    toggleTool();
 });
 $(document).keyup(function(e) {
     if (e.key == 'Backspace') {
