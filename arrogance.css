@@ -127,3 +127,15 @@ label[for="title"] {
     box-sizing: border-box;
     margin-top: 0.2em;
 }
+
+#modalhelp {
+    font-size: 0.2em;
+    line-height: 1.5;
+    max-width: 26em;
+    margin: 1.2em auto 0;
+    opacity: 0.85;
+}
+#modalactions {
+    margin-top: 1.2em;
+    font-size: 0.2em;
+}

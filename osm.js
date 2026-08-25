@@ -214,6 +214,91 @@ function classifyWay(tags, is_closed) {
  * Progress
  * ------------------------------------------------------------------ */
 
+var NOMINATIM_TIMEOUT = 15000;
+var OVERPASS_TIMEOUT = 45000;   // above the server's own [timeout:30]
+var TILE_TIMEOUT = 10000;
+var HINT_DELAY = 15000;
+
+var pending_requests = [];
+var cancelled = false;
+var hint_timer = null;
+
+/** An error the pipeline recognises as "the user asked us to stop". */
+function cancelledError() {
+    var error = new Error('cancelled');
+    error.cancelled = true;
+    return error;
+}
+
+/** Throws if the user pressed Cancel, so a pipeline stops between steps. */
+function checkCancelled() {
+    if (cancelled) {
+        throw cancelledError();
+    }
+}
+
+/** fetch() that gives up after ms, and that Cancel can abort. */
+function fetchWithTimeout(url, options, ms) {
+    var controller = new AbortController();
+    pending_requests.push(controller);
+    var timer = window.setTimeout(function() {
+        controller.timed_out = true;
+        controller.abort();
+    }, ms);
+
+    options = options || {};
+    options.signal = controller.signal;
+
+    var settled = function() {
+        window.clearTimeout(timer);
+        var at = pending_requests.indexOf(controller);
+        if (at !== -1) {
+            pending_requests.splice(at, 1);
+        }
+    };
+
+    return fetch(url, options).then(function(response) {
+        settled();
+        return response;
+    }, function(error) {
+        settled();
+        if (cancelled) {
+            throw cancelledError();
+        }
+        if (controller.timed_out) {
+            var timeout_error = new Error('timed out');
+            timeout_error.timed_out = true;
+            throw timeout_error;
+        }
+        throw error;
+    });
+}
+
+/** Stops everything in flight and unwinds to a usable state. */
+function cancelOsm() {
+    cancelled = true;
+    pending_requests.forEach(function(controller) {
+        controller.abort();
+    });
+    pending_requests = [];
+}
+
+/** After a while, reassure the user rather than leaving them guessing. */
+function startWaitHint(message) {
+    stopWaitHint();
+    hint_timer = window.setTimeout(function() {
+        $('#modalhelp').text(message).removeAttr('hidden');
+    }, HINT_DELAY);
+}
+
+function stopWaitHint() {
+    if (hint_timer) {
+        window.clearTimeout(hint_timer);
+        hint_timer = null;
+    }
+    $('#modalhelp').attr('hidden', true).text('');
+}
+
 /** Updates the modal: headline stage, detail line and bar position (0-1). */
 function osmProgress(status, step, fraction) {
     if (status !== null) {
@@ -228,12 +313,23 @@ function osmProgress(status, step, fraction) {
 /** Puts the modal back to its resting state for the next use. */
 function resetProgress() {
     osmProgress('Please wait...', '', 0);
+    stopWaitHint();
+    cancelled = false;
+    pending_requests = [];
 }
 
 /** Lets the browser paint before the next synchronous chunk of work. */
 function yieldFrame() {
-    return new Promise(function(resolve) {
-        window.requestAnimationFrame(function() { setTimeout(resolve, 0); });
+    return new Promise(function(resolve, reject) {
+        window.requestAnimationFrame(function() {
+            window.setTimeout(function() {
+                if (cancelled) {
+                    reject(cancelledError());
+                    return;
+                }
+                resolve();
+            }, 0);
+        });
     });
 }
 
@@ -242,12 +338,24 @@ function yieldFrame() {
  * Loading
  * ------------------------------------------------------------------ */
 
+/**
+ * Images cannot be aborted like fetch, so a stalled tile is abandoned on a
+ * timer. Resolves null instead of rejecting: one blank tile is not a failure.
+ */
 function loadImagePromise(src) {
-    return new Promise(function(resolve, reject) {
+    return new Promise(function(resolve) {
         var image = new Image();
+        var timer = window.setTimeout(function() {
+            image.src = '';
+            resolve(null);
+        }, TILE_TIMEOUT);
+        var finish = function(result) {
+            window.clearTimeout(timer);
+            resolve(result);
+        };
         image.crossOrigin = 'anonymous';
-        image.onload = function() { resolve(image); };
-        image.onerror = function() { reject(new Error('tile failed: ' + src)); };
+        image.onload = function() { finish(image); };
+        image.onerror = function() { finish(null); };
         image.src = src;
     });
 }
@@ -257,7 +365,7 @@ function geocodePlace(query) {
     if (coords) {
         return Promise.resolve({ lat: parseFloat(coords[1]), lon: parseFloat(coords[2]) });
     }
-    return fetch('https://nominatim.openstreetmap.org/search?format=json&limit=1&q=' + encodeURIComponent(query))
+    return fetchWithTimeout('https://nominatim.openstreetmap.org/search?format=json&limit=1&q=' + encodeURIComponent(query), null, NOMINATIM_TIMEOUT)
         .then(function(response) { return response.json(); })
         .then(function(results) {
             if (!results.length) {
@@ -287,9 +395,9 @@ function loadImagery(left, top, size, zoom) {
             (function(tx, ty) {
                 var url = 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/' + zoom + '/' + ty + '/' + tx;
                 loads.push(loadImagePromise(url).then(function(image) {
-                    tile_context.drawImage(image, tx * 256 - left, ty * 256 - top);
-                }).catch(function() {
-                    // a missing tile just leaves that part blank
+                    if (image) {
+                        tile_context.drawImage(image, tx * 256 - left, ty * 256 - top);
+                    }
                 }).then(function() {
                     done++;
                     osmProgress(null, 'aerial tile ' + done + ' of ' + total, 0.10 + 0.35 * (done / total));
@@ -355,10 +463,10 @@ function fetchOsm(south, west, north, east) {
 
     var attempt = function(index) {
         var is_last = (index + 1 >= OVERPASS_ENDPOINTS.length);
-        return fetch(OVERPASS_ENDPOINTS[index], {
+        return fetchWithTimeout(OVERPASS_ENDPOINTS[index], {
             method: 'POST',
             body: 'data=' + encodeURIComponent(query)
-        }).then(function(response) {
+        }, OVERPASS_TIMEOUT).then(function(response) {
             if (!response.ok) {
                 // a rejected query fails the same way everywhere, so do not retry it
                 if (!is_last && response.status !== 400) {
@@ -368,10 +476,19 @@ function fetchOsm(south, west, north, east) {
                 throw new Error(overpassError(response.status));
             }
             return response.json();
-        }, function() {
+        }, function(error) {
+            if (error.cancelled) {
+                throw error;
+            }
             if (!is_last) {
-                osmProgress(null, 'no answer, trying mirror ' + (index + 2) + ' of ' + OVERPASS_ENDPOINTS.length, null);
+                osmProgress(null, (error.timed_out ? 'took too long' : 'no answer') +
+                    ', trying mirror ' + (index + 2) + ' of ' + OVERPASS_ENDPOINTS.length, null);
                 return attempt(index + 1);
+            }
+            if (error.timed_out) {
+                throw new Error('The OpenStreetMap query servers did not answer in time.\n\n' +
+                    'They are free and shared, and get busy. Try again in a minute, choose a smaller ' +
+                    'area under zoom, or use the map as an image and paint it by hand.');
             }
             throw new Error('Could not reach the OpenStreetMap query servers.\n\n' +
                 'Check your internet connection, or upload an image instead and paint it by hand.');
@@ -661,12 +778,11 @@ function scrollToCanvas() {
     }
 }
 
+/** Every new search starts a new map, so the title starts again with it. */
 function setTitleFromPlace(place) {
-    var proposed = 'The Arrogance of Space - ' + place;
-    if (!$('#title').val() || $('#title').val() === auto_title) {
-        $('#title').val(proposed);
-        auto_title = proposed;
-    }
+    var named = place.charAt(0).toUpperCase() + place.slice(1);
+    auto_title = 'The Arrogance of Space - ' + named;
+    $('#title').val(auto_title);
 }
 
 /* ---- step 1: find and frame ---------------------------------------- */
@@ -682,10 +798,14 @@ function findPlace() {
     }
 
     scrollToCanvas();
+    cancelled = false;
     osmProgress('Finding the place...', place.trim(), 0.02);
+    startWaitHint('Still looking. The search and imagery servers are free and shared, so they are sometimes slow. ' +
+        'You can keep waiting, or cancel and upload your own photo instead.');
     $('#modal').fadeIn(200);
 
     geocodePlace(place.trim()).then(function(result) {
+        checkCancelled();
         var size = editorSize();
         map_view = {
             size: size,
@@ -705,11 +825,15 @@ function findPlace() {
         osmProgress('Loading aerial imagery...', null, 0.10);
         return composeView();
     }).then(function() {
+        checkCancelled();
         $('#modal').fadeOut(200, resetProgress);
     }).catch(function(error) {
         framing = false;
+        $('#framing').attr('hidden', true);
         $('#modal').fadeOut(200, resetProgress);
-        window.alert(error.message);
+        if (!error.cancelled) {
+            window.alert(error.message);
+        }
     });
 }
 
@@ -754,7 +878,10 @@ function useView(prefill) {
 
     map_attribution = map_attribution + '. Map data: OpenStreetMap contributors (ODbL)';
     scrollToCanvas();
+    cancelled = false;
     osmProgress('Reading OpenStreetMap...', 'asking the query servers', 0.50);
+    startWaitHint('Still working. The OpenStreetMap query servers are free and shared, and busy times can take a while. ' +
+        'You can keep waiting, or cancel and paint the map yourself - the map stays loaded either way.');
     $('#modal').fadeIn(200);
 
     var centre = viewCentre();
@@ -774,6 +901,11 @@ function useView(prefill) {
         // the map is already loaded, so the user can still paint it by hand
         draw();
         $('#modal').fadeOut(200, resetProgress);
+        if (error.cancelled) {
+            $('#imagedetails').text('Prefill cancelled. The map is loaded - paint the squares yourself.');
+            map_attribution = 'Imagery: Esri';
+            return;
+        }
         window.alert(error.message);
     });
 }
@@ -817,6 +949,14 @@ $('#canvas').on('wheel', function(e) {
     }
     e.preventDefault();
     zoomBy(e.originalEvent.deltaY < 0 ? 1 : -1);
+});
+
+$(document).on('click', '#modalcancel', function(e) {
+    e.preventDefault();
+    osmProgress('Stopping...', '', null);
+    stopWaitHint();
+    cancelOsm();
+    return false;
 });
 
 $(document).on('click', '#osmfind', function(e) {

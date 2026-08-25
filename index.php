@@ -110,6 +110,8 @@ $url = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? 'https' : 'http
         <div id="modalstatus">Please wait...</div>
         <div id="progress"><div id="progressbar"></div></div>
         <div id="modalstep"></div>
+        <div id="modalhelp" hidden></div>
+        <div id="modalactions"><a id="modalcancel" class="pure-button" href="#">Cancel</a></div>
     </div>
     <canvas id="virtual"></canvas>
     <script type="text/javascript" language="javascript" src="arrogance.js?counts"></script>
