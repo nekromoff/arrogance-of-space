@@ -1,4 +1,5 @@
 var grid_width = 900;
+var grid_height = 900;
 var grid_block_size = 40;
 var prev_grid_block_size = 40;
 var grid_block_number_x = grid_width / grid_block_size;
@@ -128,6 +129,7 @@ function draw() {
 }
 
 function drawBoard() {
+    context.beginPath();
     context.strokeStyle = 'rgba(0,0,0,0.3)';
     for (var x = 0; x <= grid_width; x += grid_block_size) {
         context.moveTo(x, 0);
@@ -140,10 +142,18 @@ function drawBoard() {
     context.stroke();
 }
 
+function setOpacity(color, opacity) {
+    return color.replace(/,\s*[\d.]+\s*\)\s*$/, ',' + opacity + ')');
+}
+
 function changeOpacity() {
-    tools[tools_keys[erase_key]].color = tools[tools_keys[erase_key]].color.replace(current_opacity, $('#eraseropacity').val() * 1);
     current_opacity = $('#eraseropacity').val() * 1;
-    draw();
+    for (var i = 0; i < tools_length; i++) {
+        tools[tools_keys[i]].color = setOpacity(tools[tools_keys[i]].color, current_opacity);
+    }
+    $('.tool-button').each(function() {
+        $(this).css('background-color', tools[$(this).data().tool].color);
+    });
 }
 
 function getMousePos(e) {
@@ -163,7 +173,11 @@ function toggleGrid(e) {
     var x = ((pos.x + (grid_block_size - pos.x % grid_block_size)) / grid_block_size) - 1;
     var y = ((pos.y + (grid_block_size - pos.y % grid_block_size)) / grid_block_size) - 1;
 
-    if (grid[x][y] != null && selected_tool == erase_key) {
+    if (x < 0 || y < 0 || x > grid_block_number_x || y > grid_block_number_y) {
+        return;
+    }
+
+    if (selected_tool == tools_keys[erase_key]) {
         grid[x][y] = null;
     } else {
         grid[x][y] = selected_tool;
@@ -191,7 +205,7 @@ function drawMarkers() {
         //context.moveTo(markers[i][0], markers[i][1]);
         context.beginPath();
         // change opacity to full
-        context.fillStyle = tools[markers[i][2]].color.replace(/,(\d+\.?\d*)\)/g, ',1)');
+        context.fillStyle = setOpacity(tools[markers[i][2]].color, 1);
         context.arc(markers[i][0], markers[i][1], 3, 0, 2 * Math.PI);
         context.closePath();
         context.fill();
@@ -339,7 +353,7 @@ function makeVirtual() {
                 y = y + 21;
                 x = 18;
             }
-            virtual_context.fillStyle = tools[tools_keys[i]].color.replace(current_opacity, '1');
+            virtual_context.fillStyle = setOpacity(tools[tools_keys[i]].color, 1);
             virtual_context.fillText(tools[tools_keys[i]].desc[0], x, y);
             virtual_context.fillStyle = 'black';
             var first_char_width = virtual_context.measureText(tools[tools_keys[i]].desc[0]).width;
@@ -390,7 +404,6 @@ $('#gridimage').change(function()  {
 $('#gridblocksize').change(function(e) { 
     e.preventDefault();
     resize_grid();
-    drawBoard();
     return false;
 });
 $('#eraseropacity').on('input change', function() {
