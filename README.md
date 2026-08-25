@@ -40,6 +40,6 @@ It used be a working proof of concept from 2019. In 2026 I updated and upgraded 
 ## Original concept
 Original concept by Mikael Colville-Andersen, Copenhagenize.
 See Mikael's tweet:
-https://twitter.com/colvilleandersn/status/1197537645657829379
+https://web.archive.org/web/20191121154624/https://twitter.com/colvilleandersn/status/1197537645657829379
 or read his full explanation:
 https://medium.com/@colville_andersen/the-arrogance-of-space-93a7419b0278
