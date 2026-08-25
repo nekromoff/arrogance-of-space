@@ -54,6 +54,54 @@ var tools_keys = Object.keys(tools);
 var tools_length = Object.keys(tools).length;
 var selected_tool = tools_keys[0];
 var erase_key = tools_length - 1;
+/* ------------------------------------------------------------------ *
+ * Small DOM helpers, in place of jQuery
+ * ------------------------------------------------------------------ */
+
+var FADE_MS = 200;
+
+function byId(id) {
+    return document.getElementById(id);
+}
+
+function all(selector) {
+    return Array.prototype.slice.call(document.querySelectorAll(selector));
+}
+
+function elementWidth(element) {
+    return parseInt(window.getComputedStyle(element).width, 10) || 0;
+}
+
+/** Fades an element in, then calls done. Opacity itself lives in the CSS. */
+function fadeIn(element, done) {
+    element.style.display = 'block';
+    void element.offsetWidth; // force a reflow so the transition runs
+    element.classList.add('visible');
+    if (done) {
+        window.setTimeout(done, FADE_MS);
+    }
+}
+
+function fadeOut(element, done) {
+    element.classList.remove('visible');
+    window.setTimeout(function() {
+        element.style.display = 'none';
+        if (done) {
+            done();
+        }
+    }, FADE_MS);
+}
+
+/** Click handler that survives elements being recreated, like jQuery's on(). */
+function onClick(selector, handler) {
+    document.addEventListener('click', function(e) {
+        var match = e.target.closest(selector);
+        if (match) {
+            handler.call(match, e);
+        }
+    });
+}
+
 var canvas = document.getElementById('canvas');
 var context = canvas.getContext("2d");
 var virtual_canvas = document.getElementById('virtual');
@@ -65,21 +113,21 @@ var virtual_context = virtual_canvas.getContext('2d');
  * whatever room there is, so resizing the window never disturbs the grid.
  */
 function editorSize() {
-    return Math.min(parseInt($('#editor').css('width'), 10) || 900, 900);
+    return Math.min(elementWidth(byId('editor')) || 900, 900);
 }
 
 function initialize() {
     grid_width = editorSize();
     grid_height = editorSize();
-    $('#canvas').attr('width', grid_width);
-    $('#canvas').attr('height', grid_height);
+    canvas.width = grid_width;
+    canvas.height = grid_height;
     setup();
 }
 
 function setup() {
-    $('#canvas').attr('width', grid_width);
-    $('#canvas').attr('height', grid_height);
-    grid_block_size = $('#gridblocksize').val() * 1;
+    canvas.width = grid_width;
+    canvas.height = grid_height;
+    grid_block_size = byId('gridblocksize').value * 1;
     grid_block_number_x = Math.floor(grid_width / grid_block_size);
     grid_block_number_y = Math.floor(grid_height / grid_block_size);
     grid = [];
@@ -92,18 +140,18 @@ function setup() {
     markers = [];
 
     // Create button for each tool
-    $("#tools").html(Object.entries(tools).map(([tool_name, props]) =>
+    byId('tools').innerHTML = Object.entries(tools).map(([tool_name, props]) =>
         `<button data-tool="${tool_name}" class="pure-button tool-button" style="background-color: ${props.color}">
             ${props.desc}
         </button>`
-    ));
+    ).join('');
     draw();
 }
 
 function resize_grid() {
-    $('#canvas').attr('width', grid_width);
-    $('#canvas').attr('height', grid_height);
-    grid_block_size = $('#gridblocksize').val() * 1;
+    canvas.width = grid_width;
+    canvas.height = grid_height;
+    grid_block_size = byId('gridblocksize').value * 1;
     grid_block_number_x = Math.floor(grid_width / grid_block_size);
     grid_block_number_y = Math.floor(grid_height / grid_block_size);
     var new_grid = [];
@@ -145,12 +193,12 @@ function setOpacity(color, opacity) {
 }
 
 function changeOpacity() {
-    current_opacity = $('#eraseropacity').val() * 1;
+    current_opacity = byId('eraseropacity').value * 1;
     for (var i = 0; i < tools_length; i++) {
         tools[tools_keys[i]].color = setOpacity(tools[tools_keys[i]].color, current_opacity);
     }
-    $('.tool-button').each(function() {
-        $(this).css('background-color', tools[$(this).data().tool].color);
+    all('.tool-button').forEach(function(button) {
+        button.style.backgroundColor = tools[button.dataset.tool].color;
     });
 }
 
@@ -233,8 +281,8 @@ function drawMarkers() {
 }
 
 function changeImage() {
-    $('#modal').fadeIn(400, function() {
-        var img = $('#gridimage')[0].files[0];
+    fadeIn(byId('modal'), function() {
+        var img = byId('gridimage').files[0];
         if (img.type.match('image.*')) {
             var reader = new FileReader();
             reader.readAsDataURL(img);
@@ -243,7 +291,7 @@ function changeImage() {
                     background_img = new Image();
                     background_img.src = e.target.result;
                     background_img.onload = function() {
-                        $('#imagedetails').text('Size: ' + background_img.width + ' x ' + background_img.height + ' px');
+                        byId('imagedetails').textContent = 'Size: ' + background_img.width + ' x ' + background_img.height + ' px';
                         if (background_img.width > editorSize() || background_img.height > editorSize()) {
                             var larger_dimension = 0;
                             if (background_img.width > background_img.height) {
@@ -269,16 +317,16 @@ function changeImage() {
         } else {
             window.alert('Not an image. Please select an image file - JPG, PNG etc.');
         }
-        $('#modal').fadeOut();
+        fadeOut(byId('modal'));
     });
 }
 
-$('#canvas').bind('mousewheel DOMMouseScroll', function(e) {
+canvas.addEventListener('wheel', function(e) {
     if (typeof framing !== 'undefined' && framing) {
         return;
     }
     var new_tool;
-    if (e.originalEvent.wheelDelta > 0 || e.originalEvent.detail < 0) {
+    if (e.deltaY < 0) {
         new_tool = tools_keys.indexOf(selected_tool) + 1;
     } else {
         new_tool = tools_keys.indexOf(selected_tool) - 1;
@@ -290,17 +338,16 @@ function changeTool(index) {
     const new_tool = Math.max(0, Math.min(index, tools_length - 1));
 
     selected_tool = tools_keys[new_tool];
-    $('.tool-button').each((i, button) => {
-        const tool = $(button).data().tool;
-        $(button).toggleClass('pure-button-active', tool === selected_tool)
-    })
+    all('.tool-button').forEach(function(button) {
+        button.classList.toggle('pure-button-active', button.dataset.tool === selected_tool);
+    });
 }
 
 function saveImage() {
     makeVirtual();
     var imageurl = virtual_canvas.toDataURL('image/jpg', 0.85);
-    $('#save').attr('href', imageurl); // it will save locally
-    $('#virtual').hide();
+    byId('save').setAttribute('href', imageurl); // it will save locally
+    virtual_canvas.style.display = 'none';
     return false;
 }
 
@@ -312,8 +359,8 @@ function saveGrid() {
     draw();
     makeVirtual();
     var imageurl = virtual_canvas.toDataURL('image/png');
-    $('#savegrid').attr('href', imageurl);
-    $('#virtual').hide();
+    byId('savegrid').setAttribute('href', imageurl);
+    virtual_canvas.style.display = 'none';
     background_img = copy;
     draw(); // put the photo back on screen
     return false;
@@ -332,7 +379,7 @@ function drawLegendBox(tool, x, y) {
 
 /** Draws the header title, shrinking it until it fits the canvas width. */
 function drawTitle(title, header_height) {
-    var available = parseInt($('#virtual').attr('width'), 10) - 40;
+    var available = virtual_canvas.width - 40;
     var size = 44;
     virtual_context.fillStyle = 'black';
     virtual_context.textBaseline = 'alphabetic';
@@ -344,18 +391,18 @@ function drawTitle(title, header_height) {
 }
 
 function makeVirtual() {
-    var title = ($('#title').val() || '').trim();
+    var title = (byId('title').value || '').trim();
     var header_height = title ? 70 : 0;
-    $('#virtual').attr('width', parseInt($('#canvas').attr('width'), 10));
-    $('#virtual').attr('height', parseInt($('#canvas').attr('height'), 10) + 100 + header_height);
+    virtual_canvas.width = canvas.width;
+    virtual_canvas.height = canvas.height + 100 + header_height;
     virtual_context.fillStyle = 'white';
-    virtual_context.fillRect(0, 0, parseInt($('#virtual').attr('width'), 10), parseInt($('#virtual').attr('height'), 10));
+    virtual_context.fillRect(0, 0, virtual_canvas.width, virtual_canvas.height);
     virtual_context.drawImage(canvas, 0, header_height);
     if (title) {
         drawTitle(title, header_height);
     }
     var x = 20;
-    var y = parseInt($('#virtual').attr('height'), 10) - 70;
+    var y = virtual_canvas.height - 70;
     virtual_context.font = "16px Arial";
     var counts = {};
     var count_total = 0;
@@ -397,7 +444,7 @@ function makeVirtual() {
             var percentage_string = percentage_string + ' ';
             var label = tools[tools_keys[i]].desc + percentage_string;
             var text_width = LEGEND_BOX + 6 + virtual_context.measureText(label).width;
-            if (x + text_width > parseInt($('#canvas').attr('width'), 10)) {
+            if (x + text_width > canvas.width) {
                 y = y + LEGEND_BOX + 7;
                 x = 18;
             }
@@ -411,12 +458,12 @@ function makeVirtual() {
     if (typeof map_attribution !== 'undefined' && map_attribution) {
         virtual_context.font = "11px Arial";
         virtual_context.fillStyle = 'black';
-        virtual_context.fillText(map_attribution, 20, parseInt($('#virtual').attr('height'), 10) - 12);
+        virtual_context.fillText(map_attribution, 20, virtual_canvas.height - 12);
         virtual_context.font = "16px Arial";
     }
     var branding = 'The Arrogance of Space Mapping Tool';
-    var branding_x = parseInt($('#virtual').attr('width'), 10) + 10 - virtual_context.measureText(branding).width;
-    var branding_y = parseInt($('#virtual').attr('height'), 10) - 23;
+    var branding_x = virtual_canvas.width + 10 - virtual_context.measureText(branding).width;
+    var branding_y = virtual_canvas.height - 23;
     virtual_context.beginPath();
     virtual_context.fillStyle = 'black';
     virtual_context.fillRect(branding_x - 12, branding_y - 18, virtual_context.measureText(branding).width - 13, 27);
@@ -443,38 +490,43 @@ function createMarker(e) {
     }
 }
 
-$('input').keydown(function(e) {
-    if (e.keyCode == 13) {
+all('input').forEach(function(input) {
+    input.addEventListener('keydown', function(e) {
+        if (e.keyCode == 13) {
+            e.preventDefault();
+        }
+    });
+});
+all('form').forEach(function(form) {
+    form.addEventListener('submit', function(e) {
         e.preventDefault();
-        return false;
-    }
+    });
 });
-$('form').submit(function(e) {
-    e.preventDefault();
-    return false;
-});
-$('#gridblocksize').val(grid_block_size);
-$('#gridimage').change(function() {
+byId('gridblocksize').value = grid_block_size;
+byId('gridimage').addEventListener('change', function() {
     changeImage();
 });
-$('#gridblocksize').change(function(e) {
+byId('gridblocksize').addEventListener('change', function(e) {
     e.preventDefault();
     resize_grid();
-    return false;
 });
-$('#eraseropacity').on('input change', function() {
-    changeOpacity();
-    draw();
+['input', 'change'].forEach(function(event_name) {
+    byId('eraseropacity').addEventListener(event_name, function() {
+        changeOpacity();
+        draw();
+    });
 });
-$('#canvas').bind('click mousemove', function(e) {
-    if (typeof framing !== 'undefined' && framing) {
-        return;
-    }
-    toggleGrid(e);
-    drawGrid();
-    drawMarkers();
+['click', 'mousemove'].forEach(function(event_name) {
+    canvas.addEventListener(event_name, function(e) {
+        if (typeof framing !== 'undefined' && framing) {
+            return;
+        }
+        toggleGrid(e);
+        drawGrid();
+        drawMarkers();
+    });
 });
-$(document).keyup(function(e) {
+document.addEventListener('keyup', function(e) {
     if (typeof framing !== 'undefined' && framing) {
         return;
     }
@@ -484,34 +536,34 @@ $(document).keyup(function(e) {
     drawGrid();
     drawMarkers();
 });
-$('#canvas').contextmenu(function(e) {
+canvas.addEventListener('contextmenu', function(e) {
+    e.preventDefault();
     createMarker(e);
     drawMarkers();
-    return false;
 });
-$(document).on('click', '.tool-button', function() {
-    const tool_name = $(this).data().tool;
-    const tool_index = tools_keys.indexOf(tool_name);
-
-    changeTool(tool_index)
+onClick('.tool-button', function() {
+    changeTool(tools_keys.indexOf(this.dataset.tool));
 });
-$('#save').click(function() {
+byId('save').addEventListener('click', function() {
     saveImage();
 });
-$('#savegrid').click(function() {
+byId('savegrid').addEventListener('click', function() {
     saveGrid();
 });
-$('#reset').click(function() {
+byId('reset').addEventListener('click', function() {
     reset();
 });
-$(document).on('click', '.source-tab', function(e) {
+onClick('.source-tab', function(e) {
     e.preventDefault();
-    var source = $(this).data('source');
-    $('.source-tab').removeClass('pure-button-active');
-    $(this).addClass('pure-button-active');
-    $('.source').attr('hidden', true);
-    $('#source-' + source).removeAttr('hidden');
-    return false;
+    var source = this.dataset.source;
+    var tab = this;
+    all('.source-tab').forEach(function(button) {
+        button.classList.toggle('pure-button-active', button === tab);
+    });
+    all('.source').forEach(function(panel) {
+        panel.setAttribute('hidden', 'hidden');
+    });
+    byId('source-' + source).removeAttribute('hidden');
 });
 
 /**

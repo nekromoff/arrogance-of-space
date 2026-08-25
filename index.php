@@ -9,9 +9,8 @@ $url = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? 'https' : 'http
     <meta name="description" content="Useful tool to show how much space is taken in our cities by cars. Find a place on the map or upload your own image and easily mark type of space. Inspired by Copenhagenize.">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <link rel="shortcut icon" href="favicon.png"/>
-    <script type="text/javascript" src="https://code.jquery.com/jquery.min.js"></script>
-    <link rel="stylesheet" href="https://unpkg.com/purecss@1.0.1/build/pure-min.css" integrity="sha384-oAOxQR6DkCoMliIh8yFnu25d7Eq/PHS21PClpwjOTeU2jRSq11vu66rf90/cZr47" crossorigin="anonymous">
-    <link rel="stylesheet" href="https://unpkg.com/purecss@1.0.1/build/grids-responsive-min.css" crossorigin="anonymous">
+    <link rel="stylesheet" href="pure-min.css">
+    <link rel="stylesheet" href="grids-responsive-min.css">
     <link href="arrogance.css" rel="stylesheet">
     <meta property="og:title" content="The Arrogance of Space Mapping Tool #ArroganceOfSpace">
     <meta property="og:description" content="Useful tool to show how much space is taken in our cities by cars. Find a place on the map or upload your own image and easily mark type of space.">

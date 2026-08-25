@@ -287,7 +287,9 @@ function cancelOsm() {
 function startWaitHint(message) {
     stopWaitHint();
     hint_timer = window.setTimeout(function() {
-        $('#modalhelp').text(message).removeAttr('hidden');
+        var help = byId('modalhelp');
+        help.textContent = message;
+        help.removeAttribute('hidden');
     }, HINT_DELAY);
 }
 
@@ -296,17 +298,19 @@ function stopWaitHint() {
         window.clearTimeout(hint_timer);
         hint_timer = null;
     }
-    $('#modalhelp').attr('hidden', true).text('');
+    var help = byId('modalhelp');
+    help.setAttribute('hidden', 'hidden');
+    help.textContent = '';
 }
 
 /** Updates the modal: headline stage, detail line and bar position (0-1). */
 function osmProgress(status, step, fraction) {
     if (status !== null) {
-        $('#modalstatus').text(status);
+        byId('modalstatus').textContent = status;
     }
-    $('#modalstep').text(step || '');
+    byId('modalstep').textContent = step || '';
     if (fraction !== undefined && fraction !== null) {
-        $('#progressbar').css('width', Math.round(fraction * 100) + '%');
+        byId('progressbar').style.width = Math.round(fraction * 100) + '%';
     }
 }
 
@@ -766,15 +770,16 @@ function composeView() {
     }).then(function() {
         drawPreview(0, 0);
         var across = Math.round(map_view.size * metresPerPixel(viewCentre().lat, map_view.zoom));
-        $('#zoomlevel').text('zoom ' + map_view.zoom + ', about ' + across + ' m across');
+        byId('zoomlevel').textContent = 'zoom ' + map_view.zoom + ', about ' + across + ' m across';
     });
 }
 
 /** Brings the map and the status overlay into view before a long step. */
 function scrollToCanvas() {
-    var editor = $('#editor');
-    if (editor.length) {
-        $('html, body').animate({ scrollTop: Math.max(0, editor.offset().top - 10) }, 250);
+    var editor = byId('editor');
+    if (editor) {
+        var top = editor.getBoundingClientRect().top + window.pageYOffset - 10;
+        window.scrollTo({ top: Math.max(0, top), behavior: 'smooth' });
     }
 }
 
@@ -782,13 +787,13 @@ function scrollToCanvas() {
 function setTitleFromPlace(place) {
     var named = place.charAt(0).toUpperCase() + place.slice(1);
     auto_title = 'The Arrogance of Space - ' + named;
-    $('#title').val(auto_title);
+    byId('title').value = auto_title;
 }
 
 /* ---- step 1: find and frame ---------------------------------------- */
 
 function findPlace() {
-    var place = $('#osmplace').val();
+    var place = byId('osmplace').value;
     if (!place || !place.trim()) {
         window.alert('Enter a place name or "latitude, longitude" first.');
         return;
@@ -802,7 +807,7 @@ function findPlace() {
     osmProgress('Finding the place...', place.trim(), 0.02);
     startWaitHint('Still looking. The search and imagery servers are free and shared, so they are sometimes slow. ' +
         'You can keep waiting, or cancel and upload your own photo instead.');
-    $('#modal').fadeIn(200);
+    fadeIn(byId('modal'));
 
     geocodePlace(place.trim()).then(function(result) {
         checkCancelled();
@@ -820,17 +825,18 @@ function findPlace() {
         markers = [];
         grid_width = size;
         grid_height = size;
-        $('#canvas').attr('width', size).attr('height', size);
-        $('#framing').removeAttr('hidden');
+        canvas.width = size;
+        canvas.height = size;
+        byId('framing').removeAttribute('hidden');
         osmProgress('Loading aerial imagery...', null, 0.10);
         return composeView();
     }).then(function() {
         checkCancelled();
-        $('#modal').fadeOut(200, resetProgress);
+        fadeOut(byId('modal'), resetProgress);
     }).catch(function(error) {
         framing = false;
-        $('#framing').attr('hidden', true);
-        $('#modal').fadeOut(200, resetProgress);
+        byId('framing').setAttribute('hidden', 'hidden');
+        fadeOut(byId('modal'), resetProgress);
         if (!error.cancelled) {
             window.alert(error.message);
         }
@@ -860,18 +866,18 @@ function useView(prefill) {
     }
     framing = false;
     drag_start = null;
-    $('#framing').attr('hidden', true);
+    byId('framing').setAttribute('hidden', 'hidden');
 
     grid_width = map_view.size;
     grid_height = map_view.size;
-    prev_grid_block_size = $('#gridblocksize').val() * 1;
+    prev_grid_block_size = byId('gridblocksize').value * 1;
     context.beginPath();
     context.clearRect(0, 0, grid_width, grid_height);
     setup();
 
     map_attribution = 'Imagery: Esri';
     if (!prefill) {
-        $('#imagedetails').text('Map loaded. Paint the squares yourself.');
+        byId('imagedetails').textContent = 'Map loaded. Paint the squares yourself.';
         draw();
         return;
     }
@@ -882,7 +888,7 @@ function useView(prefill) {
     osmProgress('Reading OpenStreetMap...', 'asking the query servers', 0.50);
     startWaitHint('Still working. The OpenStreetMap query servers are free and shared, and busy times can take a while. ' +
         'You can keep waiting, or cancel and paint the map yourself - the map stays loaded either way.');
-    $('#modal').fadeIn(200);
+    fadeIn(byId('modal'));
 
     var centre = viewCentre();
     var south = pxToLat(map_view.top + map_view.size, map_view.zoom);
@@ -893,16 +899,16 @@ function useView(prefill) {
     fetchOsm(south, west, north, east).then(function(data) {
         return fillGridFromOsm(data.elements || [], map_view.left, map_view.top, map_view.size, map_view.zoom, centre.lat);
     }).then(function(filled) {
-        $('#imagedetails').text('OpenStreetMap filled ' + filled + ' squares. Please check and correct them.');
+        byId('imagedetails').textContent = 'OpenStreetMap filled ' + filled + ' squares. Please check and correct them.';
         draw();
         osmProgress('Done', null, 1);
-        $('#modal').fadeOut(400, resetProgress);
+        fadeOut(byId('modal'), resetProgress);
     }).catch(function(error) {
         // the map is already loaded, so the user can still paint it by hand
         draw();
-        $('#modal').fadeOut(200, resetProgress);
+        fadeOut(byId('modal'), resetProgress);
         if (error.cancelled) {
-            $('#imagedetails').text('Prefill cancelled. The map is loaded - paint the squares yourself.');
+            byId('imagedetails').textContent = 'Prefill cancelled. The map is loaded - paint the squares yourself.';
             map_attribution = 'Imagery: Esri';
             return;
         }
@@ -912,7 +918,7 @@ function useView(prefill) {
 
 /* ---- framing interaction ------------------------------------------- */
 
-$('#canvas').on('mousedown', function(e) {
+canvas.addEventListener('mousedown', function(e) {
     if (!framing) {
         return;
     }
@@ -920,14 +926,14 @@ $('#canvas').on('mousedown', function(e) {
     e.preventDefault();
 });
 
-$(document).on('mousemove', function(e) {
+document.addEventListener('mousemove', function(e) {
     if (framing && drag_start) {
         var scale = canvasScale();
         drawPreview((e.clientX - drag_start.x) * scale.x, (e.clientY - drag_start.y) * scale.y);
     }
 });
 
-$(document).on('mouseup', function(e) {
+document.addEventListener('mouseup', function(e) {
     if (!framing || !drag_start) {
         return;
     }
@@ -943,48 +949,42 @@ $(document).on('mouseup', function(e) {
     composeView();
 });
 
-$('#canvas').on('wheel', function(e) {
+canvas.addEventListener('wheel', function(e) {
     if (!framing) {
         return;
     }
     e.preventDefault();
-    zoomBy(e.originalEvent.deltaY < 0 ? 1 : -1);
+    zoomBy(e.deltaY < 0 ? 1 : -1);
 });
 
-$(document).on('click', '#modalcancel', function(e) {
+onClick('#modalcancel', function(e) {
     e.preventDefault();
     osmProgress('Stopping...', '', null);
     stopWaitHint();
     cancelOsm();
-    return false;
 });
 
-$(document).on('click', '#osmfind', function(e) {
+onClick('#osmfind', function(e) {
     e.preventDefault();
     findPlace();
-    return false;
 });
 
-$(document).on('click', '#zoomin', function(e) {
+onClick('#zoomin', function(e) {
     e.preventDefault();
     zoomBy(1);
-    return false;
 });
 
-$(document).on('click', '#zoomout', function(e) {
+onClick('#zoomout', function(e) {
     e.preventDefault();
     zoomBy(-1);
-    return false;
 });
 
-$(document).on('click', '#osmprefill', function(e) {
+onClick('#osmprefill', function(e) {
     e.preventDefault();
     useView(true);
-    return false;
 });
 
-$(document).on('click', '#osmplain', function(e) {
+onClick('#osmplain', function(e) {
     e.preventDefault();
     useView(false);
-    return false;
 });
