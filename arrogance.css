@@ -1,13 +1,10 @@
 #container {
-    max-width: 900px;
-    max-height: 900px;
     width: 100%;
-    height: 100%;
+    max-width: 100%;
 }
 #canvas {
-    max-width: 100%;
-    max-height: 100%;
-    width: auto;
+    display: block;
+    width: 100%;
     height: auto;
 }
 #canvas:hover:active { 
@@ -40,7 +37,6 @@ h1 {
 .pure-button-warning {
     background: rgb(223, 117, 20); /* this is an orange */
 }
-.tool_down { cursor: crosshair; }
 input[type="file"] {
     /* Truncate text in file input to fit menu */
     white-space: nowrap;
@@ -50,7 +46,7 @@ input[type="file"] {
 }
 #modal {
     display: none;
-    position: absolute;
+    position: fixed;
     z-index: 1;
     width: 100%;
     height: 100%;
@@ -61,4 +57,73 @@ input[type="file"] {
     left: 0;
     text-align: center;
     font-size: 5em;
+}
+#sourcetabs {
+    display: flex;
+    margin-bottom: -1px;
+}
+#sourcetabs .source-tab {
+    flex: 1;
+    border-radius: 3px 3px 0 0;
+    background: #eee;
+    color: #666;
+    font-size: 0.9em;
+    padding: 0.5em 0;
+    border: 1px solid #ddd;
+    border-bottom: none;
+}
+#sourcetabs .source-tab.pure-button-active {
+    background: #fff;
+    color: #000;
+    font-weight: bold;
+    box-shadow: none;
+}
+#sources .source {
+    margin: 0;
+    padding: 0.7em 0.6em;
+    border: 1px solid #ddd;
+    border-radius: 0 0 3px 3px;
+}
+#sources .source[hidden] {
+    display: none;
+}
+#sources .source input[type="text"],
+#sources .source select {
+    max-width: 100%;
+}
+
+#modalstatus {
+    font-size: 0.5em;
+    margin-top: 1.5em;
+}
+#modalstep {
+    font-size: 0.24em;
+    opacity: 0.75;
+    margin-top: 0.8em;
+}
+#progress {
+    width: 60%;
+    max-width: 500px;
+    height: 14px;
+    margin: 0.5em auto 0;
+    background: rgba(255, 255, 255, 0.25);
+    border-radius: 7px;
+    overflow: hidden;
+}
+#progressbar {
+    width: 0;
+    height: 100%;
+    background: #fff;
+    border-radius: 7px;
+    transition: width 0.2s ease;
+}
+
+label[for="title"] {
+    display: block;
+}
+#title {
+    display: block;
+    width: 100%;
+    box-sizing: border-box;
+    margin-top: 0.2em;
 }

@@ -9,22 +9,22 @@ var background_img = new Image();
 var grid = [];
 var markers = [];
 var tools = {
-    cars:  {
+    cars: {
         color: 'rgba(209,34,38,0.5)',
         desc: 'Cars',
         markers: true // allow markers for this tool?
     },
-    pedestrians:  {
+    pedestrians: {
         color: 'rgba(22,169,227,0.5)',
         desc: 'Pedestrians',
         markers: true
     },
-    cyclists:  {
+    cyclists: {
         color: 'rgba(150,79,160,0.5)',
         desc: 'Cyclists',
         markers: true
     },
-    publictransport:  {
+    publictransport: {
         color: 'rgba(0,85,255,0.5)',
         desc: 'Public transport',
         markers: true
@@ -58,27 +58,27 @@ var canvas = document.getElementById('canvas');
 var context = canvas.getContext("2d");
 var virtual_canvas = document.getElementById('virtual');
 var virtual_context = virtual_canvas.getContext('2d');
-$('#tool').text(tools[selected_tool].desc);
-$('#tool').css('background-color', tools[selected_tool].color);
 
+/**
+ * The canvas resolution to work at: the editor column, capped at 900. The
+ * canvas keeps this pixel size for its whole life and CSS scales it to
+ * whatever room there is, so resizing the window never disturbs the grid.
+ */
+function editorSize() {
+    return Math.min(parseInt($('#editor').css('width'), 10) || 900, 900);
+}
 
 function initialize() {
-    $('#container').css('max-width', $('#editor').css('width'));
-    $('#container').css('max-height', $('#editor').css('height'));
-    $('#container').css('width', $('#editor').css('width'));
-    $('#container').css('height', $('#editor').css('height'));
-    $('#canvas').attr('width', $('#container').css('width'));
-    $('#canvas').attr('height', $('#container').css('height'));
-    grid_width = parseInt($('#container').css('width'), 10);
-    grid_height = parseInt($('#container').css('height'), 10);
+    grid_width = editorSize();
+    grid_height = editorSize();
+    $('#canvas').attr('width', grid_width);
+    $('#canvas').attr('height', grid_height);
     setup();
 }
 
 function setup() {
-    $('#container').css('width', grid_width);
-    $('#container').css('height', grid_height);
-    $('#canvas').attr('width', $('#container').css('width'));
-    $('#canvas').attr('height', $('#container').css('height'));
+    $('#canvas').attr('width', grid_width);
+    $('#canvas').attr('height', grid_height);
     grid_block_size = $('#gridblocksize').val() * 1;
     grid_block_number_x = Math.floor(grid_width / grid_block_size);
     grid_block_number_y = Math.floor(grid_height / grid_block_size);
@@ -101,19 +101,17 @@ function setup() {
 }
 
 function resize_grid() {
-    $('#container').css('width', grid_width);
-    $('#container').css('height', grid_height);
-    $('#canvas').attr('width', $('#container').css('width'));
-    $('#canvas').attr('height', $('#container').css('height'));
+    $('#canvas').attr('width', grid_width);
+    $('#canvas').attr('height', grid_height);
     grid_block_size = $('#gridblocksize').val() * 1;
     grid_block_number_x = Math.floor(grid_width / grid_block_size);
     grid_block_number_y = Math.floor(grid_height / grid_block_size);
     var new_grid = [];
     for (var x = 0; x <= grid_block_number_x; x++) {
-        x_prev = Math.floor(x * grid_block_size / prev_grid_block_size);
+        var x_prev = Math.floor(x * grid_block_size / prev_grid_block_size);
         new_grid[x] = [];
         for (var y = 0; y <= grid_block_number_y; y++) {
-            y_prev = Math.floor(y * grid_block_size / prev_grid_block_size);
+            var y_prev = Math.floor(y * grid_block_size / prev_grid_block_size);
             new_grid[x][y] = grid[x_prev][y_prev];
         }
     }
@@ -133,9 +131,9 @@ function drawBoard() {
     context.strokeStyle = 'rgba(0,0,0,0.3)';
     for (var x = 0; x <= grid_width; x += grid_block_size) {
         context.moveTo(x, 0);
-        context.lineTo(x, grid_width);
+        context.lineTo(x, grid_height);
     }
-    for (var y = 0; y <= grid_width; y += grid_block_size) {
+    for (var y = 0; y <= grid_height; y += grid_block_size) {
         context.moveTo(0, y);
         context.lineTo(grid_width, y);
     }
@@ -156,11 +154,24 @@ function changeOpacity() {
     });
 }
 
+/** How many canvas pixels there are per screen pixel (1 unless CSS scaled it). */
+function canvasScale() {
+    var rect = canvas.getBoundingClientRect();
+    if (!rect.width || !rect.height) {
+        return { x: 1, y: 1 };
+    }
+    return {
+        x: canvas.width / rect.width,
+        y: canvas.height / rect.height
+    };
+}
+
 function getMousePos(e) {
     var rect = canvas.getBoundingClientRect();
+    var scale = canvasScale();
     return {
-        x: e.clientX - rect.left,
-        y: e.clientY - rect.top
+        x: (e.clientX - rect.left) * scale.x,
+        y: (e.clientY - rect.top) * scale.y
     };
 }
 
@@ -168,6 +179,10 @@ function toggleGrid(e) {
     if (e.type === 'mousemove' && e.buttons !== 1) {
         return;
     }
+    if (typeof framing !== 'undefined' && framing) {
+        return;
+    }
+
     var pos = getMousePos(e);
 
     var x = ((pos.x + (grid_block_size - pos.x % grid_block_size)) / grid_block_size) - 1;
@@ -219,24 +234,24 @@ function drawMarkers() {
 
 function changeImage() {
     $('#modal').fadeIn(400, function() {
-        img = $('#gridimage')[0].files[0];
+        var img = $('#gridimage')[0].files[0];
         if (img.type.match('image.*')) {
-            reader = new FileReader();
+            var reader = new FileReader();
             reader.readAsDataURL(img);
             reader.onload = function(e) {
                 if (e.target.readyState == FileReader.DONE) {
                     background_img = new Image();
                     background_img.src = e.target.result;
-                    background_img.onload = function()  {
+                    background_img.onload = function() {
                         $('#imagedetails').text('Size: ' + background_img.width + ' x ' + background_img.height + ' px');
-                        if (background_img.width > parseInt($('#container').css('max-width'), 10) || background_img.height > parseInt($('#container').css('max-height'), 10)) {
+                        if (background_img.width > editorSize() || background_img.height > editorSize()) {
                             var larger_dimension = 0;
                             if (background_img.width > background_img.height) {
                                 larger_dimension = background_img.width;
                             } else {
                                 larger_dimension = background_img.height;
                             }
-                            ratio = parseInt($('#container').css('max-width'), 10) / larger_dimension;
+                            var ratio = editorSize() / larger_dimension;
                             background_img.width = Math.floor(background_img.width * ratio);
                             background_img.height = Math.floor(background_img.height * ratio);
                         }
@@ -246,7 +261,7 @@ function changeImage() {
                         context.clearRect(0, 0, grid_width, grid_height);
                         setup();
                     }
-                    background_img.onerror = function()  {
+                    background_img.onerror = function() {
                         window.alert('Error loading image. Please try again.');
                     }
                 }
@@ -259,6 +274,10 @@ function changeImage() {
 }
 
 $('#canvas').bind('mousewheel DOMMouseScroll', function(e) {
+    if (typeof framing !== 'undefined' && framing) {
+        return;
+    }
+    var new_tool;
     if (e.originalEvent.wheelDelta > 0 || e.originalEvent.detail < 0) {
         new_tool = tools_keys.indexOf(selected_tool) + 1;
     } else {
@@ -269,7 +288,7 @@ $('#canvas').bind('mousewheel DOMMouseScroll', function(e) {
 
 function changeTool(index) {
     const new_tool = Math.max(0, Math.min(index, tools_length - 1));
-    
+
     selected_tool = tools_keys[new_tool];
     $('.tool-button').each((i, button) => {
         const tool = $(button).data().tool;
@@ -277,7 +296,7 @@ function changeTool(index) {
     })
 }
 
-function saveImage()  {
+function saveImage() {
     makeVirtual();
     var imageurl = virtual_canvas.toDataURL('image/jpg', 0.85);
     $('#save').attr('href', imageurl); // it will save locally
@@ -285,28 +304,56 @@ function saveImage()  {
     return false;
 }
 
-function saveGrid()  {
-    copy = background_img;
+function saveGrid() {
+    var copy = background_img;
     background_img = new Image();
     context.beginPath();
     context.clearRect(0, 0, grid_width, grid_height);
-    drawBoard();
-    drawGrid();
-    drawMarkers();
+    draw();
     makeVirtual();
     var imageurl = virtual_canvas.toDataURL('image/png');
     $('#savegrid').attr('href', imageurl);
     $('#virtual').hide();
     background_img = copy;
+    draw(); // put the photo back on screen
     return false;
 }
 
+var LEGEND_BOX = 20;
+
+/** Draws the tool's colour as a square with a thin black outline. */
+function drawLegendBox(tool, x, y) {
+    virtual_context.fillStyle = setOpacity(tool.color, 1);
+    virtual_context.fillRect(x, y - LEGEND_BOX + 4, LEGEND_BOX, LEGEND_BOX);
+    virtual_context.strokeStyle = 'black';
+    virtual_context.lineWidth = 1;
+    virtual_context.strokeRect(x + 0.5, y - LEGEND_BOX + 4.5, LEGEND_BOX - 1, LEGEND_BOX - 1);
+}
+
+/** Draws the header title, shrinking it until it fits the canvas width. */
+function drawTitle(title, header_height) {
+    var available = parseInt($('#virtual').attr('width'), 10) - 40;
+    var size = 44;
+    virtual_context.fillStyle = 'black';
+    virtual_context.textBaseline = 'alphabetic';
+    do {
+        virtual_context.font = 'bold ' + size + 'px Arial';
+        size = size - 2;
+    } while (virtual_context.measureText(title).width > available && size > 12);
+    virtual_context.fillText(title, 20, header_height - 20);
+}
+
 function makeVirtual() {
+    var title = ($('#title').val() || '').trim();
+    var header_height = title ? 70 : 0;
     $('#virtual').attr('width', parseInt($('#canvas').attr('width'), 10));
-    $('#virtual').attr('height', parseInt($('#canvas').attr('height'), 10) + 100);
+    $('#virtual').attr('height', parseInt($('#canvas').attr('height'), 10) + 100 + header_height);
     virtual_context.fillStyle = 'white';
     virtual_context.fillRect(0, 0, parseInt($('#virtual').attr('width'), 10), parseInt($('#virtual').attr('height'), 10));
-    virtual_context.drawImage(canvas, 0, 0);
+    virtual_context.drawImage(canvas, 0, header_height);
+    if (title) {
+        drawTitle(title, header_height);
+    }
     var x = 20;
     var y = parseInt($('#virtual').attr('height'), 10) - 70;
     virtual_context.font = "16px Arial";
@@ -348,22 +395,28 @@ function makeVirtual() {
                 percentage_string = percentage_string + ', ' + marker_counts[tools_keys[i]] + ' counted';
             }
             var percentage_string = percentage_string + ' ';
-            var text_width = virtual_context.measureText(tools[tools_keys[i]].desc + percentage_string).width;
+            var label = tools[tools_keys[i]].desc + percentage_string;
+            var text_width = LEGEND_BOX + 6 + virtual_context.measureText(label).width;
             if (x + text_width > parseInt($('#canvas').attr('width'), 10)) {
-                y = y + 21;
+                y = y + LEGEND_BOX + 7;
                 x = 18;
             }
-            virtual_context.fillStyle = setOpacity(tools[tools_keys[i]].color, 1);
-            virtual_context.fillText(tools[tools_keys[i]].desc[0], x, y);
+            drawLegendBox(tools[tools_keys[i]], x, y);
             virtual_context.fillStyle = 'black';
-            var first_char_width = virtual_context.measureText(tools[tools_keys[i]].desc[0]).width;
-            virtual_context.fillText(tools[tools_keys[i]].desc.substr(1) + percentage_string, x + first_char_width, y);
+            virtual_context.font = "16px Arial";
+            virtual_context.fillText(label, x + LEGEND_BOX + 6, y);
             x = x + text_width + 18;
         }
     }
-    branding = 'The Arrogance of Space Mapping Tool';
-    branding_x = parseInt($('#virtual').attr('width'), 10) - 10 - virtual_context.measureText(branding).width;
-    branding_y = parseInt($('#virtual').attr('height'), 10) - 12;
+    if (typeof map_attribution !== 'undefined' && map_attribution) {
+        virtual_context.font = "11px Arial";
+        virtual_context.fillStyle = 'black';
+        virtual_context.fillText(map_attribution, 20, parseInt($('#virtual').attr('height'), 10) - 12);
+        virtual_context.font = "16px Arial";
+    }
+    var branding = 'The Arrogance of Space Mapping Tool';
+    var branding_x = parseInt($('#virtual').attr('width'), 10) + 10 - virtual_context.measureText(branding).width;
+    var branding_y = parseInt($('#virtual').attr('height'), 10) - 23;
     virtual_context.beginPath();
     virtual_context.fillStyle = 'black';
     virtual_context.fillRect(branding_x - 12, branding_y - 18, virtual_context.measureText(branding).width - 13, 27);
@@ -375,12 +428,15 @@ function makeVirtual() {
 
 function reset() {
     var answer = confirm("Reset will erase any changes. Continue?");
-    if (answer)  {
+    if (answer) {
         window.location.reload(true);
     }
 }
 
 function createMarker(e) {
+    if (typeof framing !== 'undefined' && framing) {
+        return;
+    }
     if (tools[selected_tool].markers) {
         var pos = getMousePos(e);
         markers.push([pos.x, pos.y, selected_tool]);
@@ -398,10 +454,10 @@ $('form').submit(function(e) {
     return false;
 });
 $('#gridblocksize').val(grid_block_size);
-$('#gridimage').change(function()  {
+$('#gridimage').change(function() {
     changeImage();
 });
-$('#gridblocksize').change(function(e) { 
+$('#gridblocksize').change(function(e) {
     e.preventDefault();
     resize_grid();
     return false;
@@ -411,11 +467,17 @@ $('#eraseropacity').on('input change', function() {
     draw();
 });
 $('#canvas').bind('click mousemove', function(e) {
+    if (typeof framing !== 'undefined' && framing) {
+        return;
+    }
     toggleGrid(e);
     drawGrid();
     drawMarkers();
 });
 $(document).keyup(function(e) {
+    if (typeof framing !== 'undefined' && framing) {
+        return;
+    }
     if (e.key == 'Backspace') {
         markers.pop();
     }
@@ -430,7 +492,7 @@ $('#canvas').contextmenu(function(e) {
 $(document).on('click', '.tool-button', function() {
     const tool_name = $(this).data().tool;
     const tool_index = tools_keys.indexOf(tool_name);
-    
+
     changeTool(tool_index)
 });
 $('#save').click(function() {
@@ -441,6 +503,15 @@ $('#savegrid').click(function() {
 });
 $('#reset').click(function() {
     reset();
+});
+$(document).on('click', '.source-tab', function(e) {
+    e.preventDefault();
+    var source = $(this).data('source');
+    $('.source-tab').removeClass('pure-button-active');
+    $(this).addClass('pure-button-active');
+    $('.source').attr('hidden', true);
+    $('#source-' + source).removeAttr('hidden');
+    return false;
 });
 
 /**
