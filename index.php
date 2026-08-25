@@ -13,7 +13,7 @@ $url = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? 'https' : 'http
     <!-- End Google Tag Manager -->
     <meta charset="utf-8">
     <title>The Arrogance of Space Mapping Tool #ArroganceOfSpace</title>
-    <meta name="description" content="Useful tool to show how much space is taken in our cities by cars. Load an image and easily mark type of space for any city. Inspired by Copehagenize.">
+    <meta name="description" content="Useful tool to show how much space is taken in our cities by cars. Find a place on the map or upload your own image and easily mark type of space. Inspired by Copenhagenize.">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <link rel="shortcut icon" href="favicon.png"/>
     <script type="text/javascript" src="https://code.jquery.com/jquery.min.js"></script>
@@ -21,12 +21,12 @@ $url = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? 'https' : 'http
     <link rel="stylesheet" href="https://unpkg.com/purecss@1.0.1/build/grids-responsive-min.css" crossorigin="anonymous">
     <link href="arrogance.css" rel="stylesheet">
     <meta property="og:title" content="The Arrogance of Space Mapping Tool #ArroganceOfSpace">
-    <meta property="og:description" content="Useful tool to show how much space is taken in our cities by cars. Load an image and easily mark type of space for any city.">
+    <meta property="og:description" content="Useful tool to show how much space is taken in our cities by cars. Find a place on the map or upload your own image and easily mark type of space.">
     <meta property="og:image" content="<?php echo $url; ?>arrogance.png">
     <meta property="og:url" content="<?php echo $url; ?>">
     <meta property="og:type" content="website">
     <meta name="twitter:title" content="The Arrogance of Space Mapping Tool #ArroganceOfSpace">
-    <meta name="twitter:description" content="Useful tool to show how much space is taken in our cities by cars. Load an image and easily mark type of space for any city.">
+    <meta name="twitter:description" content="Useful tool to show how much space is taken in our cities by cars. Find a place on the map or upload your own image and easily mark type of space.">
     <meta name="twitter:image" content="<?php echo $url; ?>arrogance.png">
     <meta name="twitter:card" content="summary_large_image">
 </head>
