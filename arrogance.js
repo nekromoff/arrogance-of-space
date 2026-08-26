@@ -428,21 +428,23 @@ function gridStats() {
 
 /**
  * Puts the live share, and the marker count where there is one, on each tool
- * button: "Cars (7%)" or "Cars (7%, 8)".
+ * button: "Cars (7%)", "Cars (7%, 8)", or "Cars (8)" when the tool has been
+ * counted but nothing is painted in it.
  */
 function updateToolLabels() {
     var stats = gridStats();
     all('.tool-count').forEach(function(element) {
         var tool = element.dataset.tool;
-        var percentage = stats.percentages[tool];
-        if (!percentage) {
-            element.textContent = '';
-            return;
+        var parts = [];
+        if (stats.percentages[tool]) {
+            parts.push(stats.percentages[tool] + '%');
         }
-        var markers_here = tools[tool].markers && stats.marker_counts[tool];
-        element.textContent = markers_here
-            ? ' (' + percentage + '%, ' + markers_here + ')'
-            : ' (' + percentage + '%)';
+        // markers stand on their own: a tool can be counted without a square
+        // of it being painted, and a share can round away to nothing
+        if (tools[tool].markers && stats.marker_counts[tool]) {
+            parts.push(stats.marker_counts[tool]);
+        }
+        element.textContent = parts.length ? ' (' + parts.join(', ') + ')' : '';
     });
 }
 
@@ -464,13 +466,15 @@ function makeVirtual() {
     var percentages = stats.percentages;
     var marker_counts = stats.marker_counts;
     for (var i = 0; i < tools_length - 1; i++) { // do not include last tool - the eraser
+        var parts = [];
         if (percentages[tools_keys[i]]) {
-            var percentage_string = ' (' + percentages[tools_keys[i]] + '%)';
-            if (tools[tools_keys[i]].markers && marker_counts[tools_keys[i]]) {
-                percentage_string = percentage_string + ', ' + marker_counts[tools_keys[i]] + ' counted';
-            }
-            var percentage_string = percentage_string + ' ';
-            var label = tools[tools_keys[i]].desc + percentage_string;
+            parts.push(percentages[tools_keys[i]] + '%');
+        }
+        if (tools[tools_keys[i]].markers && marker_counts[tools_keys[i]]) {
+            parts.push(marker_counts[tools_keys[i]] + ' counted');
+        }
+        if (parts.length) {
+            var label = tools[tools_keys[i]].desc + ' (' + parts.join(', ') + ') ';
             var text_width = LEGEND_BOX + 6 + virtual_context.measureText(label).width;
             if (x + text_width > canvas.width) {
                 y = y + LEGEND_BOX + 7;
