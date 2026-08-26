@@ -29,9 +29,15 @@ h1 {
 .tool-button {
     font-size: 0.85em;
     text-align: center;
-    padding: 0.75em 0;
+    padding: 0.75em 0.4em;
     overflow: hidden;
     text-overflow: clip;
+    /* the live share is appended to the label, so let it wrap rather than
+       clip - grid rows stretch, so the buttons stay level */
+    white-space: normal;
+    line-height: 1.2;
+}
+.tool-count {
     white-space: nowrap;
 }
 .pure-button-warning {

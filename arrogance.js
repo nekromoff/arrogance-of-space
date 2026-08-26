@@ -142,7 +142,7 @@ function setup() {
     // Create button for each tool
     byId('tools').innerHTML = Object.entries(tools).map(([tool_name, props]) =>
         `<button data-tool="${tool_name}" class="pure-button tool-button" style="background-color: ${props.color}">
-            ${props.desc}
+            ${props.desc}<span class="tool-count" data-tool="${tool_name}"></span>
         </button>`
     ).join('');
     draw();
@@ -172,6 +172,7 @@ function draw() {
     drawBoard();
     drawGrid();
     drawMarkers();
+    updateToolLabels();
 }
 
 function drawBoard() {
@@ -390,6 +391,61 @@ function drawTitle(title, header_height) {
     virtual_context.fillText(title, 20, header_height - 20);
 }
 
+/**
+ * Share of the painted squares held by each tool, plus how many markers each
+ * one carries. Percentages are whole numbers summing to 100 and only count
+ * squares that have actually been painted, so unpainted map does not dilute
+ * them. Used for both the on-screen tool buttons and the saved legend.
+ */
+function gridStats() {
+    var counts = {};
+    var count_total = 0;
+    for (var x = 0; x <= grid_block_number_x; x++) {
+        for (var y = 0; y <= grid_block_number_y; y++) {
+            if (grid[x][y] != null) {
+                counts[grid[x][y]] = (counts[grid[x][y]] || 0) + 1;
+                count_total++;
+            }
+        }
+    }
+    var marker_counts = {};
+    for (var i = 0; i < markers.length; i++) {
+        marker_counts[markers[i][2]] = (marker_counts[markers[i][2]] || 0) + 1;
+    }
+    var percentages = {};
+    for (const [key, value] of Object.entries(counts)) {
+        percentages[key] = (value / count_total) * 100;
+    }
+    var percentages_rounded = largestRemainderRound(percentages, 100);
+    // ugly iterator, feel free to fix based on adapted largest remainder rounding function
+    var i = 0;
+    for (const [key, value] of Object.entries(percentages)) {
+        percentages[key] = percentages_rounded[i];
+        i++;
+    }
+    return { percentages: percentages, marker_counts: marker_counts };
+}
+
+/**
+ * Puts the live share, and the marker count where there is one, on each tool
+ * button: "Cars (7%)" or "Cars (7%, 8)".
+ */
+function updateToolLabels() {
+    var stats = gridStats();
+    all('.tool-count').forEach(function(element) {
+        var tool = element.dataset.tool;
+        var percentage = stats.percentages[tool];
+        if (!percentage) {
+            element.textContent = '';
+            return;
+        }
+        var markers_here = tools[tool].markers && stats.marker_counts[tool];
+        element.textContent = markers_here
+            ? ' (' + percentage + '%, ' + markers_here + ')'
+            : ' (' + percentage + '%)';
+    });
+}
+
 function makeVirtual() {
     var title = (byId('title').value || '').trim();
     var header_height = title ? 70 : 0;
@@ -404,38 +460,10 @@ function makeVirtual() {
     var x = 20;
     var y = virtual_canvas.height - 70;
     virtual_context.font = "16px Arial";
-    var counts = {};
-    var count_total = 0;
-    for (var temp_x = 0; temp_x <= grid_block_number_x; temp_x++) {
-        for (var temp_y = 0; temp_y <= grid_block_number_y; temp_y++) {
-            if (grid[temp_x][temp_y] != null) {
-                if (!counts[grid[temp_x][temp_y]]) {
-                    counts[grid[temp_x][temp_y]] = 0;
-                }
-                counts[grid[temp_x][temp_y]]++;
-                count_total++;
-            }
-        }
-    }
-    var marker_counts = {};
-    for (var i = 0; i < markers.length; i++) {
-        if (marker_counts[markers[i][2]] == undefined) {
-            marker_counts[markers[i][2]] = 0;
-        }
-        marker_counts[markers[i][2]]++;
-    }
-    var percentages = {};
-    for (const [key, value] of Object.entries(counts)) {
-        percentages[key] = (value / count_total) * 100;
-    }
-    var percentages_rounded = largestRemainderRound(percentages, 100);
-    // ugly iterator, feel free to fix based on adapted largest remainder rounding function
-    var i = 0;
-    for (const [key, value] of Object.entries(percentages)) {
-        percentages[key] = percentages_rounded[i];
-        i++;
-    }
-    for (i = 0; i < tools_length - 1; i++) { // do not include last tool - the eraser
+    var stats = gridStats();
+    var percentages = stats.percentages;
+    var marker_counts = stats.marker_counts;
+    for (var i = 0; i < tools_length - 1; i++) { // do not include last tool - the eraser
         if (percentages[tools_keys[i]]) {
             var percentage_string = ' (' + percentages[tools_keys[i]] + '%)';
             if (tools[tools_keys[i]].markers && marker_counts[tools_keys[i]]) {
@@ -527,6 +555,7 @@ byId('gridblocksize').addEventListener('change', function(e) {
         toggleGrid(e);
         drawGrid();
         drawMarkers();
+        updateToolLabels();
     });
 });
 document.addEventListener('keyup', function(e) {
@@ -538,11 +567,13 @@ document.addEventListener('keyup', function(e) {
     }
     drawGrid();
     drawMarkers();
+    updateToolLabels();
 });
 canvas.addEventListener('contextmenu', function(e) {
     e.preventDefault();
     createMarker(e);
     drawMarkers();
+    updateToolLabels();
 });
 onClick('.tool-button', function() {
     changeTool(tools_keys.indexOf(this.dataset.tool));
