@@ -18,6 +18,13 @@ var auto_title = '';
 
 // metres, used to turn OSM centerlines into painted width
 var LANE_WIDTH = 3.25;
+
+// how much ground one grid square should cover, in metres. A lane is about
+// 3.25 m, so 2 m squares keep lanes, footways and parking distinguishable.
+var TARGET_BLOCK_METRES = 2;
+// smaller squares mean more of them: 900 / 6 is already 150 squares a side
+var MIN_BLOCK_SIZE = 6;
+var MAX_BLOCK_SIZE = 60;
 var SIDEWALK_WIDTH = 1.8;
 var CYCLE_LANE_WIDTH = 1.5;
 var PARKING_LANE_WIDTH = 2.0;
@@ -69,6 +76,35 @@ function pxToLon(px, zoom) {
 function pxToLat(py, zoom) {
     var n = Math.PI - 2 * Math.PI * py / (256 * Math.pow(2, zoom));
     return 180 / Math.PI * Math.atan(0.5 * (Math.exp(n) - Math.exp(-n)));
+}
+
+/**
+ * The grid block size, in canvas pixels, that comes closest to
+ * TARGET_BLOCK_METRES on the ground at this zoom and latitude. Without this
+ * the block size is a bare pixel count, so the same 40 px square is 8 m across
+ * at zoom 19 and 128 m across at zoom 15.
+ */
+function showBlockScale() {
+    var hint = byId('blockscale');
+    if (!hint) {
+        return;
+    }
+    if (!map_view) {
+        hint.textContent = '';
+        return;
+    }
+    // while framing, the block size the map is about to get; after that, the
+    // one actually in the box, which the user is free to have changed
+    var blocks = framing ? blockSizeForZoom(viewCentre().lat, map_view.zoom) : byId('gridblocksize').value * 1;
+    var metres = blocks * metresPerPixel(viewCentre().lat, map_view.zoom);
+    hint.textContent = metres >= 10
+        ? 'Each square is about ' + Math.round(metres) + ' m across.'
+        : 'Each square is about ' + metres.toFixed(1) + ' m across.';
+}
+
+function blockSizeForZoom(lat, zoom) {
+    var blocks = Math.round(TARGET_BLOCK_METRES / metresPerPixel(lat, zoom));
+    return Math.max(MIN_BLOCK_SIZE, Math.min(MAX_BLOCK_SIZE, blocks));
 }
 
 function metresPerPixel(lat, zoom) {
@@ -771,6 +807,7 @@ function composeView() {
         drawPreview(0, 0);
         var across = Math.round(map_view.size * metresPerPixel(viewCentre().lat, map_view.zoom));
         byId('zoomlevel').textContent = 'zoom ' + map_view.zoom + ', about ' + across + ' m across';
+        showBlockScale();
     });
 }
 
@@ -870,7 +907,9 @@ function useView(prefill) {
 
     grid_width = map_view.size;
     grid_height = map_view.size;
+    byId('gridblocksize').value = blockSizeForZoom(viewCentre().lat, map_view.zoom);
     prev_grid_block_size = byId('gridblocksize').value * 1;
+    showBlockScale();
     context.beginPath();
     context.clearRect(0, 0, grid_width, grid_height);
     setup();

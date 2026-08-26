@@ -509,6 +509,9 @@ byId('gridimage').addEventListener('change', function() {
 byId('gridblocksize').addEventListener('change', function(e) {
     e.preventDefault();
     resize_grid();
+    if (typeof showBlockScale === 'function') {
+        showBlockScale();
+    }
 });
 ['input', 'change'].forEach(function(event_name) {
     byId('eraseropacity').addEventListener(event_name, function() {

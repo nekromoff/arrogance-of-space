@@ -64,6 +64,7 @@ $url = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? 'https' : 'http
                         Block size: <input type="text" id="gridblocksize">
                     </label><br>
                     <small>Choose a grid block size. Smaller = more work.</small><br>
+                    <small id="blockscale"></small><br>
                     <label for="eraseropacity">
                         Opacity: <input type="range" min="0.1" max="0.8" value="0.5" step="0.1" id="eraseropacity">
                     </label>
