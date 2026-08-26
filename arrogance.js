@@ -512,12 +512,36 @@ function reset() {
     }
 }
 
+// how close a right click has to land to rub a marker out, in screen pixels
+var MARKER_HIT_RADIUS = 12;
+
+/** Removes the marker nearest the click, if one is close enough. */
+function eraseMarker(pos) {
+    var reach = MARKER_HIT_RADIUS * canvasScale().x;
+    var nearest = -1;
+    var nearest_distance = reach;
+    for (var i = 0; i < markers.length; i++) {
+        var distance = Math.hypot(markers[i][0] - pos.x, markers[i][1] - pos.y);
+        if (distance <= nearest_distance) {
+            nearest_distance = distance;
+            nearest = i;
+        }
+    }
+    if (nearest !== -1) {
+        markers.splice(nearest, 1);
+    }
+}
+
 function createMarker(e) {
     if (typeof framing !== 'undefined' && framing) {
         return;
     }
+    var pos = getMousePos(e);
+    if (selected_tool == tools_keys[erase_key]) {
+        eraseMarker(pos);
+        return;
+    }
     if (tools[selected_tool].markers) {
-        var pos = getMousePos(e);
         markers.push([pos.x, pos.y, selected_tool]);
     }
 }
@@ -576,8 +600,7 @@ document.addEventListener('keyup', function(e) {
 canvas.addEventListener('contextmenu', function(e) {
     e.preventDefault();
     createMarker(e);
-    drawMarkers();
-    updateToolLabels();
+    draw();
 });
 onClick('.tool-button', function() {
     changeTool(tools_keys.indexOf(this.dataset.tool));

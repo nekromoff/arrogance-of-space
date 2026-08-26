@@ -78,6 +78,7 @@ $url = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? 'https' : 'http
                     <li>Select a color tool.</li>
                     <li>Click and drag to draw the color onto the map.</li>
                     <li>Right click to add a marker (e.g. cyclist/ped counts.)</li>
+                    <li>With the eraser selected, right click removes the marker you click on.</li>
                     <li>Scroll or use your mouse wheel to cycle through colors.</li>
                     <li>Press backspace to remove a marker.</li>
                 </ul>
