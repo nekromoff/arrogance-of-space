@@ -9,52 +9,30 @@
  * geometry is kept once the grid is filled.
  */
 
-var DEFAULT_ZOOM = 19;
-var MIN_ZOOM = 15;
-var MAX_ZOOM = 20;
+/*
+ * Everything below is read from classification.json, inlined into the page by
+ * index.php and read from disk by php/src/Classifier.php - one file, two
+ * readers. The names are kept so the rest of this file is unchanged.
+ */
+var DEFAULT_ZOOM = CLASSIFICATION.zoom.default;
+var MIN_ZOOM = CLASSIFICATION.zoom.min;
+var MAX_ZOOM = CLASSIFICATION.zoom.max;
 var map_attribution = '';
 // the last title this tool filled in, so a user's own title is never overwritten
 var auto_title = '';
 
-// metres, used to turn OSM centerlines into painted width
-var LANE_WIDTH = 3.25;
+var LANE_WIDTH = CLASSIFICATION.widths_metres.lane;
+var SIDEWALK_WIDTH = CLASSIFICATION.widths_metres.sidewalk;
+var CYCLE_LANE_WIDTH = CLASSIFICATION.widths_metres.cycle_lane;
+var PARKING_LANE_WIDTH = CLASSIFICATION.widths_metres.parking_lane;
 
-// how much ground one grid square should cover, in metres. A lane is about
-// 3.25 m, so 2 m squares keep lanes, footways and parking distinguishable.
-var TARGET_BLOCK_METRES = 2;
-// smaller squares mean more of them: 900 / 6 is already 150 squares a side
-var MIN_BLOCK_SIZE = 6;
-var MAX_BLOCK_SIZE = 60;
-var SIDEWALK_WIDTH = 1.8;
-var CYCLE_LANE_WIDTH = 1.5;
-var PARKING_LANE_WIDTH = 2.0;
+var TARGET_BLOCK_METRES = CLASSIFICATION.grid.target_block_metres;
+var MIN_BLOCK_SIZE = CLASSIFICATION.grid.min_block_size;
+var MAX_BLOCK_SIZE = CLASSIFICATION.grid.max_block_size;
+var COVERAGE_THRESHOLD = CLASSIFICATION.grid.coverage_threshold;
 
-// default lane count when a road carries no lanes tag
-var DEFAULT_LANES = {
-    motorway: 4,
-    motorway_link: 2,
-    trunk: 4,
-    trunk_link: 2,
-    primary: 2,
-    primary_link: 2,
-    secondary: 2,
-    secondary_link: 2,
-    tertiary: 2,
-    tertiary_link: 2,
-    unclassified: 2,
-    residential: 2,
-    living_street: 2,
-    service: 1,
-    track: 1
-};
-
-// highest priority first: a square contested by two classes goes to the earlier one
-var OSM_PRIORITY = ['buildings', 'publictransport', 'cars', 'cyclists', 'pedestrians', 'green', 'dead_space'];
-
-// a square must be this covered before it is filled at all, otherwise it is
-// left unpainted for the user to decide
-var COVERAGE_THRESHOLD = 0.2;
-
+var DEFAULT_LANES = CLASSIFICATION.default_lanes;
+var OSM_PRIORITY = CLASSIFICATION.priority;
 
 /* ------------------------------------------------------------------ *
  * Web Mercator
@@ -116,12 +94,16 @@ function metresPerPixel(lat, zoom) {
  * Classification: OSM tags -> tool
  * ------------------------------------------------------------------ */
 
-var GREEN_LANDUSE = ['grass', 'forest', 'meadow', 'recreation_ground', 'village_green', 'allotments', 'cemetery', 'orchard', 'farmland', 'greenfield'];
-var GREEN_LEISURE = ['park', 'garden', 'pitch', 'playground', 'golf_course', 'nature_reserve'];
-var GREEN_NATURAL = ['wood', 'scrub', 'grassland', 'heath'];
-var WATERWAY_WIDTH = { river: 8.0, canal: 6.0, stream: 2.0, ditch: 1.5, drain: 1.5 };
-var PED_HIGHWAY = ['footway', 'path', 'pedestrian', 'steps', 'corridor'];
-var PT_RAILWAY = ['tram', 'rail', 'light_rail', 'subway', 'narrow_gauge'];
+var GREEN_LANDUSE = CLASSIFICATION.green.landuse;
+var GREEN_LEISURE = CLASSIFICATION.green.leisure;
+var GREEN_NATURAL = CLASSIFICATION.green.natural;
+var NATURAL_SURFACES = CLASSIFICATION.natural_surfaces;
+var WATERWAY_WIDTH = CLASSIFICATION.waterway_width;
+var PED_HIGHWAY = CLASSIFICATION.pedestrian_highway;
+var PT_RAILWAY = CLASSIFICATION.public_transport.railway;
+var PT_HIGHWAY = CLASSIFICATION.public_transport.highway;
+var PT_AERIALWAY = CLASSIFICATION.public_transport.aerialway;
+var CYCLE_VALUES = CLASSIFICATION.cycle_values;
 
 function tagNumber(value) {
     var n = parseFloat(value);
@@ -133,6 +115,71 @@ function tagNumber(value) {
  * Areas get {tool, area: true}; linear features get {tool, width} in metres,
  * plus optional side strips for sidewalks, cycle lanes and parking lanes.
  */
+/**
+ * Bus lanes from busway=lane and its side variants. no, separate and none are
+ * excluded by whitelisting the values that mean a lane exists. Only busway:both
+ * states two sides - a bare busway=lane says a lane exists without saying which
+ * side, unlike cycleway=lane where both sides is the convention.
+ */
+/**
+ * A tagged width, or the fallback.
+ *
+ * OSM's convention is that the width of anything tagged under a key is that key
+ * plus ':width', so sidewalk:left is measured by sidewalk:left:width and
+ * parking:right by parking:right:width. The base key's ':width' is the generic
+ * fallback. A mapper who measured something should not have that measurement
+ * thrown away for a default.
+ */
+function taggedWidth(tags, key, base, fallback) {
+    var width = tagNumber(tags[key + ':width']);
+    if (!width && base !== key) {
+        width = tagNumber(tags[base + ':width']);
+    }
+    return width || fallback;
+}
+
+/** width on the way itself, or the fallback. */
+function wayWidth(tags, fallback) {
+    return tagNumber(tags.width) || fallback;
+}
+
+function buswayLaneSides(tags) {
+    var sides = 0;
+    CLASSIFICATION.public_transport.busway_keys.forEach(function(key) {
+        if (CLASSIFICATION.public_transport.busway_lane_values.indexOf(tags[key]) !== -1) {
+            sides += (key === 'busway:both') ? 2 : 1;
+        }
+    });
+    return sides;
+}
+
+/**
+ * Bus lanes from the modern tagging: lanes:psv=1, or a per-lane list such as
+ * bus:lanes=no|no|designated. This is how bus lanes on ordinary streets are
+ * usually mapped now, and without it they were counted as car space.
+ */
+function psvLaneCount(tags) {
+    var counted = 0;
+    CLASSIFICATION.public_transport.psv_lane_count_keys.forEach(function(key) {
+        var number = tagNumber(tags[key]);
+        if (number) {
+            counted += number;
+        }
+    });
+    var listed = 0;
+    CLASSIFICATION.public_transport.psv_lane_list_keys.forEach(function(key) {
+        if (!tags[key]) {
+            return;
+        }
+        tags[key].split('|').forEach(function(lane) {
+            if (lane.trim() === 'designated') {
+                listed++;
+            }
+        });
+    });
+    return Math.max(counted, listed);
+}
+
 function classifyWay(tags, is_closed) {
     if (!tags) {
         return null;
@@ -162,7 +209,15 @@ function classifyWay(tags, is_closed) {
     }
 
     if (tags.natural === 'tree_row') {
-        return { tool: 'green', width: 2.0 };
+        return { tool: 'green', width: wayWidth(tags, 2.0) };
+    }
+
+    // A playground is only green if its ground is. Plenty are asphalt, rubber
+    // or artificial turf, and painting those green would credit the city with
+    // greenery it has not got. Where surface is missing the answer is genuinely
+    // unknown, so the square is left unpainted rather than guessed.
+    if (tags.leisure === 'playground') {
+        return (is_closed && NATURAL_SURFACES.indexOf(tags.surface) !== -1) ? { tool: 'green', area: true } : null;
     }
 
     if (GREEN_LANDUSE.indexOf(tags.landuse) !== -1 ||
@@ -172,7 +227,11 @@ function classifyWay(tags, is_closed) {
     }
 
     if (PT_RAILWAY.indexOf(tags.railway) !== -1) {
-        return { tool: 'publictransport', width: 3.0 };
+        return { tool: 'publictransport', width: wayWidth(tags, 3.0) };
+    }
+
+    if (PT_AERIALWAY.indexOf(tags.aerialway) !== -1) {
+        return { tool: 'publictransport', width: wayWidth(tags, 3.0) };
     }
 
     var highway = tags.highway;
@@ -180,8 +239,13 @@ function classifyWay(tags, is_closed) {
         return null;
     }
 
-    if (highway === 'busway' || tags.busway || tags.psv === 'designated') {
-        return { tool: 'publictransport', width: 3.5 };
+    // A whole way given over to public transport. busway=* is NOT here: that
+    // tags a bus lane *within* an ordinary street, and treating it as a bus-only
+    // road deleted the street's car space entirely. It is counted as a lane
+    // further down instead. The old test also used bare truthiness, so
+    // busway=no - a road explicitly without a bus lane - was painted as one.
+    if (PT_HIGHWAY.indexOf(highway) !== -1 || tags.psv === 'designated') {
+        return { tool: 'publictransport', width: wayWidth(tags, 3.5) };
     }
 
     if (highway === 'cycleway') {
@@ -204,42 +268,74 @@ function classifyWay(tags, is_closed) {
     var width = tagNumber(tags.width) || lanes * LANE_WIDTH;
 
     // on-street parking widens the space given to cars
-    var parking_sides = 0;
-    ['parking:lane:both', 'parking:left', 'parking:right', 'parking:both', 'parking:lane:left', 'parking:lane:right'].forEach(function(key) {
+    var parking_width = 0;
+    CLASSIFICATION.parking_keys.forEach(function(key) {
         var value = tags[key];
         if (value && value !== 'no' && value !== 'separate') {
-            parking_sides += (key.indexOf('both') !== -1) ? 2 : 1;
+            var sides = (key.indexOf('both') !== -1) ? 2 : 1;
+            parking_width += sides * taggedWidth(tags, key, 'parking', PARKING_LANE_WIDTH);
         }
     });
-    width = width + parking_sides * PARKING_LANE_WIDTH;
+    width = width + parking_width;
 
     var result = { tool: 'cars', width: width, strips: [] };
 
+    // Total metres of footway beside the carriageway, not a count of sides: a
+    // measured sidewalk:left:width=4 is worth using, and the tool already
+    // honours width on carriageways and cycleways. Ignoring it here undercounted
+    // pedestrian space wherever a mapper had measured it, which inflates the car
+    // share - the direction that flatters this tool's own argument.
     var sidewalk = tags.sidewalk;
-    var sidewalk_sides = 0;
+    var sidewalk_width = 0;
     if (sidewalk === 'both' || sidewalk === 'yes' || tags['sidewalk:both'] === 'yes') {
-        sidewalk_sides = 2;
+        sidewalk_width = 2 * taggedWidth(tags, 'sidewalk:both', 'sidewalk', SIDEWALK_WIDTH);
     } else if (sidewalk === 'left' || sidewalk === 'right') {
-        sidewalk_sides = 1;
+        sidewalk_width = taggedWidth(tags, 'sidewalk:' + sidewalk, 'sidewalk', SIDEWALK_WIDTH);
     } else {
-        sidewalk_sides = (tags['sidewalk:left'] === 'yes' ? 1 : 0) + (tags['sidewalk:right'] === 'yes' ? 1 : 0);
+        ['left', 'right'].forEach(function(side) {
+            if (tags['sidewalk:' + side] === 'yes') {
+                sidewalk_width += taggedWidth(tags, 'sidewalk:' + side, 'sidewalk', SIDEWALK_WIDTH);
+            }
+        });
     }
     var cycle_sides = 0;
-    ['cycleway', 'cycleway:both', 'cycleway:left', 'cycleway:right'].forEach(function(key) {
+    var cycle_width = 0;
+    var busway_sides = 0;
+    CLASSIFICATION.cycleway_keys.forEach(function(key) {
         var value = tags[key];
-        if (value && ['lane', 'track', 'opposite_lane', 'share_busway', 'shared_lane'].indexOf(value) !== -1) {
-            cycle_sides += (key === 'cycleway' || key === 'cycleway:both') ? 2 : 1;
+        if (!value) {
+            return;
+        }
+        var sides = (key === 'cycleway' || key === 'cycleway:both') ? 2 : 1;
+        if (CYCLE_VALUES.indexOf(value) !== -1) {
+            cycle_sides += sides;
+            cycle_width += sides * taggedWidth(tags, key, 'cycleway', CYCLE_LANE_WIDTH);
+        } else if (value === 'share_busway') {
+            busway_sides += sides;
         }
     });
+
+    // A bus lane is part of the carriageway rather than extra width beside it,
+    // so it is drawn narrower than the road and takes its area from the
+    // carriageway by priority instead of widening the street. The two tagging
+    // families describe the same thing, so the larger is taken rather than the
+    // sum: busway=lane plus lanes:psv=1 is one bus lane, not two.
+    var bus_lanes = Math.max(busway_sides + buswayLaneSides(tags), psvLaneCount(tags));
+    // A street cannot be all bus lane and still be a street: if every lane were
+    // reserved it would carry psv=designated or highway=busway, handled above.
+    if (bus_lanes > 0) {
+        bus_lanes = Math.min(bus_lanes, Math.max(1, lanes - 1));
+        result.strips.push({ tool: 'publictransport', width: Math.min(width, bus_lanes * LANE_WIDTH) });
+    }
     // Strips are drawn as full-width bands and the narrower, higher priority
     // bands are subtracted later, leaving each one as a ring beside the
     // carriageway. Order outwards from the centre: carriageway, cycle, footway.
-    var cycle_band = width + cycle_sides * CYCLE_LANE_WIDTH;
+    var cycle_band = width + cycle_width;
     if (cycle_sides > 0) {
         result.strips.push({ tool: 'cyclists', width: cycle_band });
     }
-    if (sidewalk_sides > 0) {
-        result.strips.push({ tool: 'pedestrians', width: cycle_band + sidewalk_sides * SIDEWALK_WIDTH });
+    if (sidewalk_width > 0) {
+        result.strips.push({ tool: 'pedestrians', width: cycle_band + sidewalk_width });
     }
 
     return result;
@@ -488,17 +584,9 @@ function overpassError(status) {
 function fetchOsm(south, west, north, east) {
     var bbox = south + ',' + west + ',' + north + ',' + east;
     var query = '[out:json][timeout:30];(' +
-        'way["highway"](' + bbox + ');' +
-        'way["railway"](' + bbox + ');' +
-        'way["building"](' + bbox + ');' +
-        'way["landuse"](' + bbox + ');' +
-        'way["leisure"](' + bbox + ');' +
-        'way["natural"](' + bbox + ');' +
-        'way["amenity"="parking"](' + bbox + ');' +
-        'relation["building"](' + bbox + ');' +
-        'relation["landuse"](' + bbox + ');' +
-        'relation["leisure"](' + bbox + ');' +
-        'relation["natural"](' + bbox + ');' +
+        CLASSIFICATION.overpass_selectors.map(function(selector) {
+            return selector + '(' + bbox + ');';
+        }).join('') +
         ');out geom;';
 
     var attempt = function(index) {
@@ -1006,6 +1094,17 @@ onClick('#modalcancel', function(e) {
 onClick('#osmfind', function(e) {
     e.preventDefault();
     findPlace();
+});
+
+// Enter in the place field searches, which is what typing a place name and
+// hitting return obviously ought to do. A global handler in arrogance.js
+// already swallows Enter on every input to stop the form navigating away, so
+// without this the key does nothing at all here.
+byId('osmplace').addEventListener('keydown', function(e) {
+    if (e.key === 'Enter' || e.keyCode === 13) {
+        e.preventDefault();
+        findPlace();
+    }
 });
 
 onClick('#zoomin', function(e) {

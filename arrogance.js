@@ -8,48 +8,33 @@ var current_opacity = 0.5;
 var background_img = new Image();
 var grid = [];
 var markers = [];
-var tools = {
-    cars: {
-        color: 'rgba(209,34,38,0.5)',
-        desc: 'Cars',
-        markers: true // allow markers for this tool?
-    },
-    pedestrians: {
-        color: 'rgba(22,169,227,0.5)',
-        desc: 'Pedestrians',
-        markers: true
-    },
-    cyclists: {
-        color: 'rgba(150,79,160,0.5)',
-        desc: 'Cyclists',
-        markers: true
-    },
-    publictransport: {
-        color: 'rgba(0,85,255,0.5)',
-        desc: 'Public transport',
-        markers: true
-    },
-    buildings: {
-        color: 'rgba(255,255,100,0.5)',
-        desc: 'Buildings',
-        markers: false
-    },
-    green: {
-        color: 'rgba(0,255,0,0.5)',
-        desc: 'Green',
-        markers: true
-    },
-    dead_space: {
-        color: 'rgba(148,148,153,0.5)',
-        desc: '"Dead" space',
-        markers: false
-    },
-    eraser: {
-        color: 'rgba(255,255,255,0.5)',
-        desc: 'Eraser',
-        markers: false
+/**
+ * The shared classification tables, inlined into the page by index.php from
+ * classification.json - the same bytes the PHP renderer reads from disk.
+ *
+ * Tag lists, widths, priority and this palette therefore exist once. The
+ * decision logic in classifyWay() is still written in both languages, because
+ * JSON cannot express branching, but nothing below is a literal that could
+ * quietly disagree with the bot.
+ */
+var CLASSIFICATION = (function() {
+    var tag = document.getElementById('classification');
+    if (!tag) {
+        throw new Error('classification.json was not inlined into the page - see index.php');
     }
-};
+    return JSON.parse(tag.textContent);
+})();
+
+var tools = {};
+Object.keys(CLASSIFICATION.tools).forEach(function(name) {
+    var entry = CLASSIFICATION.tools[name];
+    tools[name] = {
+        color: 'rgba(' + entry.rgb.join(',') + ',' + CLASSIFICATION.tool_opacity + ')',
+        desc: entry.desc,
+        markers: entry.markers
+    };
+});
+
 var tools_keys = Object.keys(tools);
 var tools_length = Object.keys(tools).length;
 var selected_tool = tools_keys[0];
@@ -388,7 +373,9 @@ function drawTitle(title, header_height) {
         virtual_context.font = 'bold ' + size + 'px Arial';
         size = size - 2;
     } while (virtual_context.measureText(title).width > available && size > 12);
-    virtual_context.fillText(title, 20, header_height - 20);
+    // centred, but never pushed off the left edge by a title that hit the size floor
+    var x = Math.max(20, Math.round((virtual_canvas.width - virtual_context.measureText(title).width) / 2));
+    virtual_context.fillText(title, x, header_height - 20);
 }
 
 /**

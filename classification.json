@@ -1,0 +1,263 @@
+{
+    "_comment": "Shared classification tables for The Arrogance of Space. Read by php/src/Classifier.php and by osm.js (inlined into the page by index.php). The decision *logic* still exists in both languages; these tables do not. Change a tag here and both the browser tool and the bot change together.",
+    "widths_metres": {
+        "lane": 3.25,
+        "sidewalk": 1.8,
+        "cycle_lane": 1.5,
+        "parking_lane": 2
+    },
+    "grid": {
+        "target_block_metres": 2,
+        "min_block_size": 6,
+        "max_block_size": 60,
+        "coverage_threshold": 0.2
+    },
+    "zoom": {
+        "default": 19,
+        "min": 15,
+        "max": 20
+    },
+    "priority": [
+        "buildings",
+        "publictransport",
+        "cars",
+        "cyclists",
+        "pedestrians",
+        "green",
+        "dead_space"
+    ],
+    "tool_opacity": 0.5,
+    "tools": {
+        "cars": {
+            "rgb": [
+                209,
+                34,
+                38
+            ],
+            "desc": "Cars",
+            "markers": true
+        },
+        "pedestrians": {
+            "rgb": [
+                22,
+                169,
+                227
+            ],
+            "desc": "Pedestrians",
+            "markers": true
+        },
+        "cyclists": {
+            "rgb": [
+                150,
+                79,
+                160
+            ],
+            "desc": "Cyclists",
+            "markers": true
+        },
+        "publictransport": {
+            "rgb": [
+                0,
+                85,
+                255
+            ],
+            "desc": "Public transport",
+            "markers": true
+        },
+        "buildings": {
+            "rgb": [
+                255,
+                255,
+                100
+            ],
+            "desc": "Buildings",
+            "markers": false
+        },
+        "green": {
+            "rgb": [
+                0,
+                255,
+                0
+            ],
+            "desc": "Green",
+            "markers": true
+        },
+        "dead_space": {
+            "rgb": [
+                148,
+                148,
+                153
+            ],
+            "desc": "\"Dead\" space",
+            "markers": false
+        },
+        "eraser": {
+            "rgb": [
+                255,
+                255,
+                255
+            ],
+            "desc": "Eraser",
+            "markers": false
+        }
+    },
+    "default_lanes": {
+        "motorway": 4,
+        "motorway_link": 2,
+        "trunk": 4,
+        "trunk_link": 2,
+        "primary": 2,
+        "primary_link": 2,
+        "secondary": 2,
+        "secondary_link": 2,
+        "tertiary": 2,
+        "tertiary_link": 2,
+        "unclassified": 2,
+        "residential": 2,
+        "living_street": 2,
+        "service": 1,
+        "track": 1
+    },
+    "waterway_width": {
+        "river": 8,
+        "canal": 6,
+        "stream": 2,
+        "ditch": 1.5,
+        "drain": 1.5
+    },
+    "green": {
+        "landuse": [
+            "grass",
+            "forest",
+            "meadow",
+            "recreation_ground",
+            "village_green",
+            "allotments",
+            "cemetery",
+            "orchard",
+            "farmland",
+            "greenfield",
+            "vineyard",
+            "plant_nursery"
+        ],
+        "leisure": [
+            "park",
+            "garden",
+            "pitch",
+            "golf_course",
+            "nature_reserve",
+            "dog_park"
+        ],
+        "natural": [
+            "wood",
+            "scrub",
+            "grassland",
+            "heath",
+            "wetland",
+            "shrubbery"
+        ]
+    },
+    "natural_surfaces": [
+        "grass",
+        "sand",
+        "dirt",
+        "earth",
+        "ground",
+        "soil",
+        "mud",
+        "woodchips",
+        "wood_chips",
+        "bark_mulch",
+        "grass_paver",
+        "meadow"
+    ],
+    "pedestrian_highway": [
+        "footway",
+        "path",
+        "pedestrian",
+        "steps",
+        "corridor"
+    ],
+    "cycle_values": [
+        "lane",
+        "track",
+        "opposite_lane"
+    ],
+    "public_transport": {
+        "railway": [
+            "tram",
+            "rail",
+            "light_rail",
+            "subway",
+            "narrow_gauge",
+            "funicular",
+            "monorail"
+        ],
+        "highway": [
+            "busway",
+            "bus_guideway"
+        ],
+        "aerialway": [
+            "cable_car",
+            "gondola",
+            "mixed_lift",
+            "chair_lift"
+        ],
+        "busway_lane_values": [
+            "lane",
+            "opposite_lane",
+            "opposite"
+        ],
+        "busway_keys": [
+            "busway",
+            "busway:both",
+            "busway:left",
+            "busway:right"
+        ],
+        "psv_lane_count_keys": [
+            "lanes:psv",
+            "lanes:bus",
+            "lanes:psv:forward",
+            "lanes:psv:backward",
+            "lanes:bus:forward",
+            "lanes:bus:backward"
+        ],
+        "psv_lane_list_keys": [
+            "bus:lanes",
+            "psv:lanes",
+            "bus:lanes:forward",
+            "bus:lanes:backward",
+            "psv:lanes:forward",
+            "psv:lanes:backward"
+        ]
+    },
+    "cycleway_keys": [
+        "cycleway",
+        "cycleway:both",
+        "cycleway:left",
+        "cycleway:right"
+    ],
+    "parking_keys": [
+        "parking:lane:both",
+        "parking:left",
+        "parking:right",
+        "parking:both",
+        "parking:lane:left",
+        "parking:lane:right"
+    ],
+    "overpass_selectors": [
+        "way[\"highway\"]",
+        "way[\"railway\"]",
+        "way[\"aerialway\"]",
+        "way[\"building\"]",
+        "way[\"landuse\"]",
+        "way[\"leisure\"]",
+        "way[\"natural\"]",
+        "way[\"amenity\"=\"parking\"]",
+        "relation[\"building\"]",
+        "relation[\"landuse\"]",
+        "relation[\"leisure\"]",
+        "relation[\"natural\"]",
+        "relation[\"highway\"][\"type\"=\"multipolygon\"]"
+    ]
+}
