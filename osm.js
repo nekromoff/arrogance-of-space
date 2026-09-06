@@ -496,18 +496,52 @@ function loadImagePromise(src) {
     });
 }
 
+/**
+ * The settlement a result sits in, for the title. Only these: a district or a
+ * region reads as an address rather than a headline, and Nominatim's are often
+ * named after the town anyway ("okres Galanta"), which would just say it twice.
+ */
+var PLACE_SETTLEMENT_KEYS = ['city', 'town', 'village', 'municipality'];
+
+/**
+ * A short name for what Nominatim actually found, rather than what was typed:
+ * "hlavna, galanta" comes back as "Hlavná, Galanta". display_name is ordered
+ * most specific first and its first part is the feature that matched - the
+ * street, the station, the monument - so the name is that plus the place it is
+ * in, and nothing else.
+ */
+function placeName(result) {
+    var found = (result.display_name || '').split(',')[0].trim();
+    if (!found) {
+        return '';
+    }
+    var address = result.address || {};
+    for (var i = 0; i < PLACE_SETTLEMENT_KEYS.length; i++) {
+        var settlement = address[PLACE_SETTLEMENT_KEYS[i]];
+        // a town found by name is already the whole title
+        if (settlement && settlement !== found) {
+            return found + ', ' + settlement;
+        }
+    }
+    return found;
+}
+
 function geocodePlace(query) {
     var coords = query.match(/^\s*(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)\s*$/);
     if (coords) {
-        return Promise.resolve({ lat: parseFloat(coords[1]), lon: parseFloat(coords[2]) });
+        return Promise.resolve({ lat: parseFloat(coords[1]), lon: parseFloat(coords[2]), name: '' });
     }
-    return fetchWithTimeout('https://nominatim.openstreetmap.org/search?format=json&limit=1&q=' + encodeURIComponent(query), null, NOMINATIM_TIMEOUT)
+    return fetchWithTimeout('https://nominatim.openstreetmap.org/search?format=json&limit=1&addressdetails=1&q=' + encodeURIComponent(query), null, NOMINATIM_TIMEOUT)
         .then(function(response) { return response.json(); })
         .then(function(results) {
             if (!results.length) {
                 throw new Error('Place not found: ' + query);
             }
-            return { lat: parseFloat(results[0].lat), lon: parseFloat(results[0].lon) };
+            return {
+                lat: parseFloat(results[0].lat),
+                lon: parseFloat(results[0].lon),
+                name: placeName(results[0])
+            };
         });
 }
 
@@ -771,13 +805,17 @@ async function fillGridFromOsm(elements, left, top, size, zoom, centre_lat) {
         await yieldFrame();
         var counts = [];
         var pixels = masks[counted_tool].getContext('2d').getImageData(0, 0, size, size).data;
-        for (var py = 0; py < size; py++) {
-            var row = py * size * 4;
-            var by = Math.floor(py / grid_block_size);
-            for (var px = 0; px < size; px++) {
-                if (pixels[row + px * 4 + 3] > 128) {
-                    var counted_index = by * (grid_block_number_x + 1) + Math.floor(px / grid_block_size);
-                    counts[counted_index] = (counts[counted_index] || 0) + 1;
+        if (hexActive()) {
+            HexGrid.countCoverage(pixels, size, counts);
+        } else {
+            for (var py = 0; py < size; py++) {
+                var row = py * size * 4;
+                var by = Math.floor(py / grid_block_size);
+                for (var px = 0; px < size; px++) {
+                    if (pixels[row + px * 4 + 3] > 128) {
+                        var counted_index = by * (grid_block_number_x + 1) + Math.floor(px / grid_block_size);
+                        counts[counted_index] = (counts[counted_index] || 0) + 1;
+                    }
                 }
             }
         }
@@ -795,10 +833,16 @@ async function fillGridFromOsm(elements, left, top, size, zoom, centre_lat) {
         var block_width = Math.min(grid_block_size, size - x * grid_block_size);
         for (var y = 0; y <= grid_block_number_y; y++) {
             var block_height = Math.min(grid_block_size, size - y * grid_block_size);
-            if (block_width <= 0 || block_height <= 0) {
+            // the area the threshold is measured against. For a square that is
+            // still width * height, and neither side can come out negative, so
+            // the test below is the test it was: a zero product only ever means
+            // a zero side. A hexagon has to be asked, because the canvas edge
+            // cuts it in six directions rather than two.
+            var cell_area = hexActive() ? HexGrid.cellArea(x, y, size) : block_width * block_height;
+            if (cell_area <= 0) {
                 continue;
             }
-            var minimum = block_width * block_height * COVERAGE_THRESHOLD;
+            var minimum = cell_area * COVERAGE_THRESHOLD;
             var index = y * (grid_block_number_x + 1) + x;
             var best_tool = null;
             var best_count = 0;
@@ -908,9 +952,14 @@ function scrollToCanvas() {
     }
 }
 
-/** Every new search starts a new map, so the title starts again with it. */
-function setTitleFromPlace(place) {
-    var named = place.charAt(0).toUpperCase() + place.slice(1);
+/**
+ * Every new search starts a new map, so the title starts again with it. The
+ * name Nominatim gave back is used where there is one, so a search for
+ * "hlavna, galanta" is titled "Hlavná, Galanta" rather than what was typed.
+ * Coordinates are not searched for and have no name, so they stay as entered.
+ */
+function setTitleFromPlace(place, found) {
+    var named = found || place.charAt(0).toUpperCase() + place.slice(1);
     auto_title = 'The Arrogance of Space - ' + named;
     byId('title').value = auto_title;
 }
@@ -943,7 +992,7 @@ function findPlace() {
             left: lonToPx(result.lon, DEFAULT_ZOOM) - size / 2,
             top: latToPx(result.lat, DEFAULT_ZOOM) - size / 2
         };
-        setTitleFromPlace(place.trim());
+        setTitleFromPlace(place.trim(), result.name);
 
         framing = true;
         grid = [];

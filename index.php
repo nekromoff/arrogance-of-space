@@ -59,7 +59,7 @@ $url = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? 'https' : 'http
                 </div>
                 <small id="imagedetails"></small>
                 <fieldset>
-                    <legend>Grid</legend>
+                    <legend>Grid <label id="hexgridlabel" for="hexgrid"><input type="checkbox" id="hexgrid"> hexagons (experimental)</label></legend>
                     <label for="gridblocksize">
                         Block size: <input type="text" id="gridblocksize">
                     </label><br>
@@ -128,5 +128,7 @@ $url = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? 'https' : 'http
     <script type="application/json" id="classification"><?php echo file_get_contents(__DIR__ . '/classification.json'); ?></script>
     <script type="text/javascript" language="javascript" src="arrogance.js?counts"></script>
     <script type="text/javascript" language="javascript" src="osm.js?counts"></script>
+    <script type="text/javascript" language="javascript" src="qr.js?counts"></script>
+    <script type="text/javascript" language="javascript" src="hexgrid.js?counts"></script>
 </body>
 </html>

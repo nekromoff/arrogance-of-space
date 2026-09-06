@@ -77,6 +77,15 @@ function fadeOut(element, done) {
     }, FADE_MS);
 }
 
+/**
+ * True when the experimental hexagon module is loaded and switched on. Every
+ * place the grid's geometry is assumed square asks this first; with the box
+ * clear, or hexgrid.js absent, the square code below runs unchanged.
+ */
+function hexActive() {
+    return typeof HexGrid !== 'undefined' && HexGrid.active();
+}
+
 /** Click handler that survives elements being recreated, like jQuery's on(). */
 function onClick(selector, handler) {
     document.addEventListener('click', function(e) {
@@ -113,8 +122,12 @@ function setup() {
     canvas.width = grid_width;
     canvas.height = grid_height;
     grid_block_size = byId('gridblocksize').value * 1;
-    grid_block_number_x = Math.floor(grid_width / grid_block_size);
-    grid_block_number_y = Math.floor(grid_height / grid_block_size);
+    if (hexActive()) {
+        HexGrid.setCounts();
+    } else {
+        grid_block_number_x = Math.floor(grid_width / grid_block_size);
+        grid_block_number_y = Math.floor(grid_height / grid_block_size);
+    }
     grid = [];
     for (var x = 0; x <= grid_block_number_x; x++) {
         grid[x] = [];
@@ -136,6 +149,10 @@ function setup() {
 function resize_grid() {
     canvas.width = grid_width;
     canvas.height = grid_height;
+    if (hexActive()) {
+        HexGrid.rebuild(true, prev_grid_block_size);
+        return;
+    }
     grid_block_size = byId('gridblocksize').value * 1;
     grid_block_number_x = Math.floor(grid_width / grid_block_size);
     grid_block_number_y = Math.floor(grid_height / grid_block_size);
@@ -161,6 +178,10 @@ function draw() {
 }
 
 function drawBoard() {
+    if (hexActive()) {
+        HexGrid.drawBoard(context);
+        return;
+    }
     context.beginPath();
     context.strokeStyle = 'rgba(0,0,0,0.3)';
     for (var x = 0; x <= grid_width; x += grid_block_size) {
@@ -217,6 +238,11 @@ function toggleGrid(e) {
         return;
     }
 
+    if (hexActive()) {
+        HexGrid.toggleGrid(e);
+        return;
+    }
+
     var pos = getMousePos(e);
 
     var x = ((pos.x + (grid_block_size - pos.x % grid_block_size)) / grid_block_size) - 1;
@@ -234,6 +260,10 @@ function toggleGrid(e) {
 }
 
 function drawGrid() {
+    if (hexActive()) {
+        HexGrid.drawGrid(context);
+        return;
+    }
     context.drawImage(background_img, 0, 0, background_img.width, background_img.height);
     for (var x = 0; x <= grid_block_number_x; x++) {
         for (var y = 0; y <= grid_block_number_y; y++) {
@@ -353,6 +383,10 @@ function saveGrid() {
 }
 
 var LEGEND_BOX = 20;
+/* every legend row starts here, so a wrapped row lines up with the first */
+var LEGEND_LEFT = 20;
+/* clear space after the longest label, before the next column starts */
+var LEGEND_GAP = 18;
 
 /** Draws the tool's colour as a square with a thin black outline. */
 function drawLegendBox(tool, x, y) {
@@ -361,6 +395,91 @@ function drawLegendBox(tool, x, y) {
     virtual_context.strokeStyle = 'black';
     virtual_context.lineWidth = 1;
     virtual_context.strokeRect(x + 0.5, y - LEGEND_BOX + 4.5, LEGEND_BOX - 1, LEGEND_BOX - 1);
+}
+
+/* two pixels per module: the code stands on the branding bar and spans both
+   legend rows, and every module lands on a whole pixel */
+var QR_SCALE = 2;
+/* quiet zone, in modules. The code sits directly on the black bar, so this
+   white border is the only clear space it gets on that side - it is painted,
+   not left to the background */
+var QR_QUIET = 2;
+/* clear space between the code and the legend to its left */
+var QR_MARGIN = 10;
+/* breathing room between the code and the bottom of the map above it */
+var QR_CLEARANCE = 6;
+/* a long URL needs a big code; past this the strip would dominate the picture,
+   so the code drops to one pixel per module instead */
+var QR_MAX_STRIP = 140;
+/* the strip under the map: legend, attribution and the branding bar */
+var STRIP_HEIGHT = 100;
+/* the branding bar: its height, where its top sits above the text baseline,
+   and where that baseline sits above the bottom edge. The bar sits 3 px lower
+   than it once did and the text travels with it, so the text keeps the
+   centring it had inside the bar */
+var BRANDING_BAR = 27;
+var BRANDING_BASELINE = 20;
+var BRANDING_BAR_TOP = 18;
+
+/** The address of this page, as index.php wrote it into the og:url tag. */
+function pageUrl() {
+    var meta = document.querySelector('meta[property="og:url"]');
+    return meta ? meta.getAttribute('content') : '';
+}
+
+/**
+ * The QR code for this page, or null if there is no encoder, no URL, or a URL
+ * too long to encode. Worked out before anything is laid out, because the
+ * strip has to be tall enough to hold it: a saved image without a QR code is
+ * still a saved image, but one with the code over the legend is not.
+ */
+function qrPlan() {
+    if (typeof QrCode === 'undefined') {
+        return null;
+    }
+    var modules = QrCode.matrix(pageUrl());
+    if (!modules) {
+        return null;
+    }
+    var scale = QR_SCALE;
+    var side = (modules.length + QR_QUIET * 2) * scale;
+    if (stripFor(side) > QR_MAX_STRIP) {
+        scale = 1;
+        side = (modules.length + QR_QUIET * 2) * scale;
+    }
+    return { modules: modules, side: side, scale: scale };
+}
+
+/** How deep the strip has to be to stand a code of this size on the bar. */
+function stripFor(side) {
+    return Math.max(
+        STRIP_HEIGHT,
+        BRANDING_BASELINE + BRANDING_BAR_TOP + side + QR_CLEARANCE
+    );
+}
+
+/**
+ * Draws the code with its bottom right corner at the given point. The quiet
+ * zone is painted white rather than left to the background, so the code still
+ * reads whatever ends up around it.
+ */
+function drawQrCode(plan, right, bottom) {
+    var modules = plan.modules;
+    var scale = plan.scale;
+    var side = plan.side;
+    var left = right - side;
+    var top = bottom - side;
+    virtual_context.fillStyle = 'white';
+    virtual_context.fillRect(left, top, side, side);
+    virtual_context.fillStyle = 'black';
+    var origin = QR_QUIET * scale;
+    for (var y = 0; y < modules.length; y++) {
+        for (var x = 0; x < modules.length; x++) {
+            if (modules[y][x]) {
+                virtual_context.fillRect(left + origin + x * scale, top + origin + y * scale, scale, scale);
+            }
+        }
+    }
 }
 
 /** Draws the header title, shrinking it until it fits the canvas width. */
@@ -438,20 +557,42 @@ function updateToolLabels() {
 function makeVirtual() {
     var title = (byId('title').value || '').trim();
     var header_height = title ? 70 : 0;
+
+    // The code stands on the branding bar, right aligned with it, tall enough
+    // to span both legend rows. The strip deepens to hold it rather than the
+    // legend giving up a column - fewer columns means another legend row, and
+    // there is no room below for one.
+    var qr = qrPlan();
     virtual_canvas.width = canvas.width;
-    virtual_canvas.height = canvas.height + 100 + header_height;
+    virtual_canvas.height = canvas.height + (qr ? stripFor(qr.side) : STRIP_HEIGHT) + header_height;
     virtual_context.fillStyle = 'white';
     virtual_context.fillRect(0, 0, virtual_canvas.width, virtual_canvas.height);
     virtual_context.drawImage(canvas, 0, header_height);
     if (title) {
         drawTitle(title, header_height);
     }
-    var x = 20;
-    var y = virtual_canvas.height - 70;
     virtual_context.font = "16px Arial";
+
+    // measured up front: the code hangs off the bar's right edge, and the
+    // legend has to know where it stops
+    var branding = 'The Arrogance of Space Mapping Tool';
+    var branding_width = virtual_context.measureText(branding).width;
+    var branding_x = virtual_canvas.width + 10 - branding_width;
+    var branding_y = virtual_canvas.height - BRANDING_BASELINE;
+    var bar_right = branding_x - 12 + branding_width - 13;
+    var bar_top = branding_y - BRANDING_BAR_TOP;
+
     var stats = gridStats();
     var percentages = stats.percentages;
     var marker_counts = stats.marker_counts;
+
+    // Gather first, place second. Laying each entry down after the one before
+    // it packs the row tightly but leaves the next row ragged: "Green" lands
+    // under "Cars" only by luck, and the entry beside it lands wherever the
+    // label above happened to end. One column width for all of them, taken
+    // from the widest, puts every row on the same grid.
+    var entries = [];
+    var column_width = 0;
     for (var i = 0; i < tools_length - 1; i++) { // do not include last tool - the eraser
         var parts = [];
         if (percentages[tools_keys[i]]) {
@@ -461,18 +602,26 @@ function makeVirtual() {
             parts.push(marker_counts[tools_keys[i]] + ' counted');
         }
         if (parts.length) {
-            var label = tools[tools_keys[i]].desc + ' (' + parts.join(', ') + ') ';
-            var text_width = LEGEND_BOX + 6 + virtual_context.measureText(label).width;
-            if (x + text_width > canvas.width) {
-                y = y + LEGEND_BOX + 7;
-                x = 18;
-            }
-            drawLegendBox(tools[tools_keys[i]], x, y);
-            virtual_context.fillStyle = 'black';
-            virtual_context.font = "16px Arial";
-            virtual_context.fillText(label, x + LEGEND_BOX + 6, y);
-            x = x + text_width + 18;
+            var label = tools[tools_keys[i]].desc + ' (' + parts.join(', ') + ')';
+            entries.push({ tool: tools[tools_keys[i]], label: label });
+            column_width = Math.max(
+                column_width,
+                LEGEND_BOX + 6 + virtual_context.measureText(label).width + LEGEND_GAP
+            );
         }
+    }
+
+    var legend_right = qr ? bar_right - qr.side - QR_MARGIN : canvas.width - LEGEND_LEFT;
+    var available = legend_right - LEGEND_LEFT;
+    var columns = Math.max(1, Math.floor(available / column_width));
+    var y = canvas.height + header_height + (STRIP_HEIGHT - 70);
+    for (var e = 0; e < entries.length; e++) {
+        var column_x = LEGEND_LEFT + (e % columns) * column_width;
+        var row_y = y + Math.floor(e / columns) * (LEGEND_BOX + 7);
+        drawLegendBox(entries[e].tool, column_x, row_y);
+        virtual_context.fillStyle = 'black';
+        virtual_context.font = "16px Arial";
+        virtual_context.fillText(entries[e].label, column_x + LEGEND_BOX + 6, row_y);
     }
     if (typeof map_attribution !== 'undefined' && map_attribution) {
         virtual_context.font = "11px Arial";
@@ -480,12 +629,13 @@ function makeVirtual() {
         virtual_context.fillText(map_attribution, 20, virtual_canvas.height - 12);
         virtual_context.font = "16px Arial";
     }
-    var branding = 'The Arrogance of Space Mapping Tool';
-    var branding_x = virtual_canvas.width + 10 - virtual_context.measureText(branding).width;
-    var branding_y = virtual_canvas.height - 23;
+    if (qr) {
+        // right aligned with the bar, standing directly on top of it
+        drawQrCode(qr, bar_right, bar_top);
+    }
     virtual_context.beginPath();
     virtual_context.fillStyle = 'black';
-    virtual_context.fillRect(branding_x - 12, branding_y - 18, virtual_context.measureText(branding).width - 13, 27);
+    virtual_context.fillRect(branding_x - 12, bar_top, branding_width - 13, BRANDING_BAR);
     virtual_context.closePath();
     virtual_context.font = "bold 13px Arial";
     virtual_context.fillStyle = 'white';

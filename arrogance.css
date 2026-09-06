@@ -40,8 +40,18 @@ h1 {
 .tool-count {
     white-space: nowrap;
 }
+/*
+ * Pure ships #0078e7 here, which carries white text at 4.34:1 - under the
+ * 4.5:1 WCAG AA wants for normal text. This blue is 7.17:1, so "Find place"
+ * and "Save image" clear AAA. Pure sets these on anchors as
+ * a.pure-button-primary, so the override has to be as specific.
+ */
+.pure-button-primary,
+a.pure-button-primary {
+    background-color: #0057a8;
+}
 .pure-button-warning {
-    background: rgb(223, 117, 20); /* this is an orange */
+    background: rgb(223, 117, 20); /* this is an orange, 5.41:1 under the label */
 }
 input[type="file"] {
     /* Truncate text in file input to fit menu */
@@ -148,4 +158,19 @@ label[for="title"] {
 #modalactions {
     margin-top: 1.2em;
     font-size: 0.2em;
+}
+
+/* the experimental hexagon switch, sat on the Grid legend rather than under it */
+#hexgridlabel {
+    display: inline;
+    float: right;
+    margin: 0;
+    font-size: 80%;
+    font-weight: normal;
+    color: #595959; /* 7:1 on white: this is small text, so AA needs 4.5:1 */
+    cursor: pointer;
+}
+#hexgridlabel input {
+    vertical-align: middle;
+    margin: 0 0.2em 0 0;
 }
