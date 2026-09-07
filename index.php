@@ -98,7 +98,7 @@ $url = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? 'https' : 'http
         </div>
         <div class="l-box">
             <small><a href="https://medium.com/@colville_andersen/the-arrogance-of-space-93a7419b0278">Concept</a> by <a href="https://colville-andersen.com/">Mikael Colville-Andersen</a>, Copenhagenize.</small><br>
-            <small>This tool developed by <a href="https://www.ambience.sk/about/">Daniel Duris</a> for the <a href="https://cyklokoalicia.sk/en/">Cycling Coalition</a>. See <a href="https://github.com/nekromoff/arrogance-of-space">code on Github</a>. #ArroganceOfSpace</small><br>
+            <small>This tool developed by <a href="https://www.ambience.sk/about/">Daniel Duris</a> for the <a href="https://cyklokoalicia.sk/en/english-information/">Cycling Coalition</a>. See <a href="https://github.com/nekromoff/arrogance-of-space">code on Github</a>. #ArroganceOfSpace</small><br>
             <small>Follow on Fediverse: <a href="https://bots.ambience.sk/@arroganceofspace">@arroganceofspace@bots.ambience.sk</a></small>
         </div>
     </div>
